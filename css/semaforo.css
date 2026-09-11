@@ -1,0 +1,32 @@
+/* Semaforo de rondas */
+.card.luz{text-align:center; border-width:2px}
+.card.luz.rojo{border-color:var(--red); background:#fffafa}
+.card.luz.ambar{border-color:var(--amber); background:#fffbeb}
+.card.luz.verde{border-color:var(--green); background:#f6fef9}
+
+.semaforo{display:flex; justify-content:center; gap:.9rem; margin:.3rem 0 1rem}
+.foco{width:54px; height:54px; border-radius:50%; background:#e2e8f0;
+      transition:background .25s ease, box-shadow .25s ease}
+.card.luz.rojo  #focoRojo {background:var(--red);   box-shadow:0 0 0 8px rgba(220,38,38,.15)}
+.card.luz.ambar #focoAmbar{background:var(--amber); box-shadow:0 0 0 8px rgba(217,119,6,.15)}
+.card.luz.verde #focoVerde{background:var(--green); box-shadow:0 0 0 8px rgba(22,163,74,.15)}
+
+.veredicto b{display:block; font-size:1.5rem; font-weight:800; letter-spacing:-.02em}
+.card.luz.rojo  .veredicto b{color:var(--red)}
+.card.luz.ambar .veredicto b{color:var(--amber)}
+.card.luz.verde .veredicto b{color:var(--green)}
+.veredicto span{display:block; font-size:.78rem; color:var(--muted); margin-top:.2rem}
+
+.card.luz .btn.big{margin:1.1rem 0 .8rem}
+.marcador{display:grid; grid-template-columns:1fr 1fr; gap:.6rem}
+.marcador>div{background:rgba(255,255,255,.7); border:1px solid var(--line);
+              border-radius:10px; padding:.6rem}
+.grande{font-size:1.7rem; font-weight:800; font-variant-numeric:tabular-nums}
+
+.recos{display:grid; gap:.5rem; margin-bottom:.8rem}
+.recos button{text-align:left; padding:.7rem .8rem; border-radius:10px; cursor:pointer;
+              border:1px solid var(--line); background:#fff; font:inherit; font-size:.8rem}
+.recos button b{display:block; font-size:.92rem; margin-bottom:.15rem}
+.recos button.mejor{border-color:var(--green); background:#f6fef9}
+.recos button small{color:var(--muted)}
+tr.actual td{background:var(--teal-l); font-weight:700}
