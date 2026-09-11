@@ -39,3 +39,25 @@ tr.actual td{background:var(--teal-l); font-weight:700}
 .cuenta-barra>div{height:100%; background:var(--green); width:100%; transition:width .2s linear}
 #cuentaNum.renovado{animation:pulso .6s ease}
 @keyframes pulso{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
+.card.destacada{border:2px solid var(--teal); background:var(--teal-l)}
+.card.destacada h2{color:var(--teal-d)}
+.opc{font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+     background:#e2e8f0; color:var(--muted); padding:.15rem .4rem; border-radius:999px;
+     vertical-align:middle; margin-left:.3rem}
+.reco-principal{background:#fff; border:2px solid var(--green); border-radius:12px;
+                padding:1rem; text-align:center; margin-bottom:.8rem}
+.reco-principal .titulo{font-size:.68rem; text-transform:uppercase; letter-spacing:.07em;
+                        color:var(--muted); font-weight:700}
+.reco-principal .valor{font-size:1.5rem; font-weight:800; color:var(--teal-d); margin:.3rem 0}
+.reco-principal .detalle{font-size:.8rem; color:var(--ink)}
+.reco-principal button{margin-top:.7rem; width:100%; border:0; border-radius:10px;
+   padding:.6rem; background:var(--green); color:#fff; font:inherit; font-weight:700; cursor:pointer}
+.opciones{display:grid; gap:.5rem}
+.opcion{text-align:left; border:1px solid var(--line); background:#fff; border-radius:10px;
+        padding:.7rem .8rem; font:inherit; cursor:pointer; display:grid; gap:.1rem}
+.opcion.actual{border-color:var(--teal); border-width:2px; background:var(--teal-l)}
+.opcion .et{font-size:.66rem; text-transform:uppercase; letter-spacing:.06em;
+            color:var(--muted); font-weight:700}
+.opcion b{font-size:1.25rem; font-weight:800; color:var(--teal-d)}
+.opcion .prob{font-size:.9rem; font-weight:700; color:var(--green)}
+.opcion small{font-size:.7rem; color:var(--muted)}

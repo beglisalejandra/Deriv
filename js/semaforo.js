@@ -1,8 +1,9 @@
 /* =========================================================================
- * semaforo.js — Observa el mercado real de Deriv y dice cuando abrir ronda
+ * semaforo.js — Planificador de rondas
  *
- * No accede a ninguna cuenta: los datos de mercado de Deriv son publicos,
- * los mismos que muestra charts.deriv.com. Aqui solo se leen.
+ * Principio de diseno: lo util funciona SIN conexion. La matematica de la
+ * ronda solo necesita los parametros del bot. La conexion al mercado es un
+ * extra que, si falla, no deja la pagina inservible.
  * ========================================================================= */
 (function () {
   'use strict';
@@ -10,506 +11,355 @@
   var $ = function (id) { return document.getElementById(id); };
   var api = new window.DerivAPI();
   var stats = new window.DigitStats(5000);
-
   var APP_ID = '1089';
-  var estado = { corriendo:false, sub:null, pipSize:2, pagoReal:null,
-               ultimoAnalisis:null, mejorIndice:null, escanTimer:null,
-               cuentaTimer:null, cuentaFin:null, enVerde:false };
+
+  /* Lista de reserva: si la API no responde o filtra mal, el desplegable
+     nunca se queda vacio, que es lo que rompio la version anterior. */
+  var RESERVA = [
+    { symbol:'R_10',  display_name:'Volatility 10 Index',  pip:0.001 },
+    { symbol:'R_25',  display_name:'Volatility 25 Index',  pip:0.001 },
+    { symbol:'R_50',  display_name:'Volatility 50 Index',  pip:0.0001 },
+    { symbol:'R_75',  display_name:'Volatility 75 Index',  pip:0.0001 },
+    { symbol:'R_100', display_name:'Volatility 100 Index', pip:0.01 }
+  ];
+
+  var estado = { corriendo:false, sub:null, pipSize:2, escanTimer:null,
+                 cuentaTimer:null, cuentaFin:null, enVerde:false, analisis:null };
 
   var COLORES = ['#dc2626','#ea580c','#d97706','#65a30d','#16a34a',
                  '#0d9488','#0284c7','#4f46e5','#9333ea','#db2777'];
 
-  function pct(x, d) { return (x * 100).toFixed(d === undefined ? 1 : d) + '%'; }
-  function usd(x) { return (x < 0 ? '-' : '+') + Math.abs(x).toFixed(2); }
+  function pct(x,d){ return (x*100).toFixed(d===undefined?1:d)+'%'; }
+  function usd(x){ return (x<0?'-':'+')+Math.abs(x).toFixed(2); }
 
-  /* ------------------------- Configuracion actual ----------------------- */
+  /* --------------------------- Configuracion ---------------------------- */
 
   function cfg() {
-    var tipo = $('tipo').value;
     return {
       simbolo: $('simbolo').value,
-      tipo: tipo,
+      tipo: $('tipo').value,
       barrera: Number($('barrera').value),
       stake: Number($('stake').value) || 1,
+      pago: Number($('pago').value) || null,
       tp: Number($('tp').value) || 1,
-      sl: Number($('sl').value) || 1,
-      pago: estado.pagoReal
+      sl: Number($('sl').value) || 1
     };
   }
-
-  function guardar() {
-    var o = {};
-    ['simbolo','tipo','barrera','stake','tp','sl'].forEach(function (id) { o[id] = $(id).value; });
-    try { localStorage.setItem('semaforo_cfg', JSON.stringify(o)); } catch (e) {}
+  function guardar(){
+    var o={}; ['simbolo','tipo','barrera','stake','pago','tp','sl']
+      .forEach(function(id){ o[id]=$(id).value; });
+    try{ localStorage.setItem('plan_cfg', JSON.stringify(o)); }catch(e){}
+  }
+  function cargar(){
+    try{ var o=JSON.parse(localStorage.getItem('plan_cfg')||'{}');
+      Object.keys(o).forEach(function(id){ if($(id)) $(id).value=o[id]; });
+    }catch(e){}
   }
 
-  function cargar() {
-    try {
-      var o = JSON.parse(localStorage.getItem('semaforo_cfg') || '{}');
-      Object.keys(o).forEach(function (id) { if ($(id)) $(id).value = o[id]; });
-    } catch (e) {}
-  }
-
-  /* ------------------- Analisis de la configuracion --------------------- */
-
-  function analizarConfig() {
+  /* Al cambiar de contrato, el pago tipico se actualiza solo. */
+  function pagoSugerido(){
     var c = cfg();
+    var p = window.Ronda.pagoDe(c.tipo, c.barrera);
+    if (p) $('pago').value = p.toFixed(2);
+  }
+
+  /* --------------------------- El veredicto ----------------------------- */
+
+  function calcular() {
+    var c = cfg();
+    $('labBarrera').style.display = window.Ronda.CONTRATOS[c.tipo].barrera ? '' : 'none';
+
     var a = window.Ronda.analizar(c);
-    if (!a) return null;
-
-    $('dAcierto').textContent = pct(a.probOperacion);
-    $('dPago').textContent = 'x' + a.pago.toFixed(2);
-    $('dEquilibrio').textContent = pct(a.equilibrio, 2);
-    $('dDuracion').textContent = a.operacionesMedias
-      ? Math.round(a.operacionesMedias) + ' ops (~' + a.minutosMedios.toFixed(0) + ' min)' : '—';
-
-    var linea = function (k, v, cls) {
-      return '<div class="line"><span>' + k + '</span><b class="' + (cls||'') + '">' + v + '</b></div>';
-    };
-    $('dResumen').innerHTML =
-      linea('Probabilidad de llegar a +' + c.tp.toFixed(0) + ' antes de -' + c.sl.toFixed(0),
-            pct(a.probExito), a.probExito >= 0.5 ? 'pos' : 'neg') +
-      linea('Resultado medio por ronda', usd(a.veRonda) + ' USD', a.veRonda >= 0 ? 'pos' : 'neg') +
-      linea('Valor esperado por operacion', pct(a.veOperacion, 2), a.veOperacion >= 0 ? 'pos' : 'neg') +
-      linea('Rondas hasta perder ' + c.sl.toFixed(0) + ' USD netos',
-            a.veRonda < 0 ? Math.round(c.sl / -a.veRonda) : '—');
-
-    estado.ultimoAnalisis = a;
-    return a;
-  }
-
-  /* ------------------------- Recomendaciones ---------------------------- */
-
-  function recomendar() {
-    var c = cfg();
-    var r = window.Ronda.recomendar(c);
-    if (!r) return;
-
-    var cajas = [
-      { t:'Mas probable de cerrar en verde', o:r.masSeguro, tag:'exito' },
-      { t:'La que menos cuesta', o:r.menosMalo, tag:'ve' },
-      { t:'Equilibrada', o:r.equilibrado, tag:'eq' }
-    ];
-    // Quitar duplicados por TP
-    var vistos = {};
-    cajas = cajas.filter(function (x) {
-      if (vistos[x.o.tp]) return false;
-      vistos[x.o.tp] = 1; return true;
-    });
-
-    $('recos').innerHTML = cajas.map(function (x, i) {
-      return '<button data-tp="' + x.o.tp + '" class="' + (i === 0 ? 'mejor' : '') + '">' +
-        '<b>Arriesga ' + c.sl.toFixed(0) + ' USD buscando ' + x.o.tp.toFixed(2) + ' USD</b>' +
-        '<small>' + x.t + ' · exito ' + pct(x.o.exito) +
-        ' · resultado medio ' + usd(x.o.ve) + ' USD · ~' + Math.round(x.o.ops) + ' operaciones</small>' +
-        '</button>';
-    }).join('');
-
-    Array.prototype.forEach.call($('recos').querySelectorAll('button'), function (b) {
-      b.addEventListener('click', function () {
-        $('tp').value = b.dataset.tp;
-        guardar(); refrescarTodo();
-      });
-    });
-
-    // Tabla resumida
-    var actual = Number($('tp').value);
-    var filas = r.todas.filter(function (o, i) { return i % Math.ceil(r.todas.length / 12) === 0
-                                                     || Math.abs(o.tp - actual) < 0.01; });
-    $('tablaTp').querySelector('tbody').innerHTML = filas.map(function (o) {
-      return '<tr class="' + (Math.abs(o.tp - actual) < 0.01 ? 'actual' : '') + '">' +
-        '<td>+' + o.tp.toFixed(2) + '</td>' +
-        '<td>' + pct(o.exito) + '</td>' +
-        '<td class="' + (o.ve >= 0 ? 'pos' : 'neg') + '">' + usd(o.ve) + '</td>' +
-        '<td>' + Math.round(o.ops) + ' ops</td></tr>';
-    }).join('');
-  }
-
-
-  /* ------------------ Escaner de pagos entre indices --------------------
-     La probabilidad de acertar no se puede mover. El pago si: varia segun
-     el indice. Entrar donde mejor pagan es el unico filtro de entrada que
-     cambia el resultado de verdad. -------------------------------------- */
-
-  /* Los simbolos se piden a Deriv al conectar. Codificarlos a mano fallaba:
-     la API rechazaba 1HZ75V con InvalidSymbol. */
-  var INDICES = [];
-  var NOMBRES = {};
-
-  function cargarSimbolos() {
-    return api.activeSymbols().then(function (lista) {
-      var utiles = lista.filter(function (x) {
-        return x.submarket === 'random_index' && x.exchange_is_open !== 0;
-      });
-      if (!utiles.length) utiles = lista.filter(function (x) { return /^(R_|1HZ)/.test(x.symbol); });
-      INDICES = utiles.map(function (x) { return x.symbol; });
-      utiles.forEach(function (x) { NOMBRES[x.symbol] = x.display_name; });
-
-      var sel = $('simbolo'), previo = sel.value;
-      sel.innerHTML = '';
-      utiles.forEach(function (x) {
-        var o = document.createElement('option');
-        o.value = x.symbol; o.textContent = x.display_name;
-        o.dataset.pip = x.pip;
-        sel.appendChild(o);
-      });
-      if (INDICES.indexOf(previo) >= 0) sel.value = previo;
-      var opt = sel.options[sel.selectedIndex];
-      if (opt && opt.dataset.pip) {
-        var pip = Number(opt.dataset.pip);
-        estado.pipSize = pip > 0 ? Math.round(-Math.log10(pip)) : 2;
-      }
-      guardar();
-      return utiles;
-    });
-  }
-
-  function escanearPagos() {
-    if (!estado.corriendo) return Promise.resolve(null);
-    var c = cfg();
-    var lleva = window.Ronda.CONTRATOS[c.tipo].barrera;
-    var out = [];
-    var i = 0;
-
-    function siguiente() {
-      if (i >= INDICES.length) return Promise.resolve(out);
-      var sym = INDICES[i++];
-      return api.proposal({
-        amount: c.stake, contract_type: c.tipo, currency: 'USD',
-        duration: 1, duration_unit: 't', symbol: sym,
-        barrier: lleva ? c.barrera : undefined
-      }).then(function (p) {
-        var mult = p.payout / p.ask_price;
-        // Lo que decide no es el pago suelto, sino la probabilidad de que la
-        // ronda alcance el objetivo antes del limite con ESE pago.
-        var an = window.Ronda.analizar({ tipo:c.tipo, barrera:c.barrera,
-                   stake:c.stake, tp:c.tp, sl:c.sl, pago:mult });
-        out.push({ sym: sym, nombre: NOMBRES[sym] || sym, pago: mult,
-                   exito: an ? an.probExito : 0,
-                   ve: an ? an.veRonda : 0 });
-      }).catch(function () {})
-        .then(function () {
-          return new Promise(function (r) { setTimeout(r, 110); }).then(siguiente);
-        });
-    }
-    return siguiente();
-  }
-
-  function pintarEscaner(lista) {
-    var cont = $('escaner');
-    if (!cont) return;
-    if (!lista || !lista.length) {
-      cont.innerHTML = '<p class="note">Sin cotizaciones. Deriv no cotiza pagos sin cuenta, ' +
-        'asi que se usan los valores tipicos del contrato.</p>';
-      estado.mejorIndice = null;
-      return;
-    }
-    lista.sort(function (a, b) { return b.exito - a.exito; });
-    estado.mejorIndice = lista[0];
-
-    var actual = cfg().simbolo;
-    cont.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
-      '<th>Indice</th><th>Exito de la ronda</th><th>Pago</th></tr></thead><tbody>' +
-      lista.map(function (x, n) {
-        return '<tr class="' + (x.sym === actual ? 'actual' : n === 0 ? 'good' : '') + '">' +
-          '<td>' + x.nombre + (n === 0 ? ' ★' : '') + '</td>' +
-          '<td><b>' + (x.exito * 100).toFixed(1) + '%</b></td>' +
-          '<td>x' + x.pago.toFixed(2) + '</td>' +
-          '</tr>';
-      }).join('') + '</tbody></table></div>';
-
-    if (lista[0].sym !== actual) {
-      var mio = lista.filter(function (x) { return x.sym === actual; })[0];
-      $('notaEscaner').innerHTML = 'Con tus mismos objetivo y limite, la ronda tiene <b>' +
-        (lista[0].exito * 100).toFixed(1) + '%</b> de exito en <b>' + lista[0].nombre + '</b>' +
-        (mio ? ', frente al ' + (mio.exito * 100).toFixed(1) + '% del que tienes puesto' : '') +
-        '. Cambia el indice aqui y en el desplegable <b>Market</b> del bot.';
-    } else {
-      $('notaEscaner').innerHTML = 'Estas en el indice con mejor probabilidad de ronda: <b>' +
-        (lista[0].exito * 100).toFixed(1) + '%</b>.';
-    }
-  }
-
-
-  /* ------------------------- Cuenta atras del verde ---------------------
-     La senal se recalcula con cada tick. Este contador dice cuanto le
-     queda de validez a la lectura actual: si la condicion se rompe antes,
-     se corta al instante; si sigue en pie al llegar a cero, se renueva.
-     No predice cuanto durara el verde, marca cuando caduca lo medido. -- */
-
-  var VALIDEZ = 30;   // segundos
-
-  function arrancarCuenta() {
-    if (estado.cuentaTimer) return;             // ya corriendo, no reiniciar
-    estado.cuentaFin = Date.now() + VALIDEZ * 1000;
-    $('cuenta').hidden = false;
-    estado.cuentaTimer = setInterval(pintarCuenta, 200);
-    pintarCuenta();
-  }
-
-  function pararCuenta() {
-    if (estado.cuentaTimer) { clearInterval(estado.cuentaTimer); estado.cuentaTimer = null; }
-    estado.cuentaFin = null;
-    if ($('cuenta')) $('cuenta').hidden = true;
-  }
-
-  function pintarCuenta() {
-    if (!estado.cuentaFin) return;
-    var resto = Math.max(0, estado.cuentaFin - Date.now()) / 1000;
-    $('cuentaNum').textContent = resto.toFixed(1) + 's';
-    $('cuentaBarra').style.width = (resto / VALIDEZ * 100) + '%';
-    if (resto <= 0) {
-      // Caducada: se renueva solo si la senal sigue en verde al recalcular.
-      estado.cuentaFin = Date.now() + VALIDEZ * 1000;
-      $('cuentaNum').classList.add('renovado');
-      setTimeout(function () { $('cuentaNum').classList.remove('renovado'); }, 600);
-    }
-  }
-
-  /* --------------------------- El semaforo ------------------------------ */
-
-  function evaluarMomento() {
-    var c = cfg();
-    var a = estado.ultimoAnalisis;
-    if (!a) return null;
-    if (stats.digits.length < 100) return { listo:false, n:stats.digits.length };
-
-    var aciertos = window.Edge.countWins(stats.digits, c.tipo, c.barrera);
-    var g = window.Edge.evaluateEntry({
-      wins: aciertos, n: stats.digits.length,
-      payoutMult: a.pago, theoreticalP: a.probOperacion,
-      threshold: 0.5, minSample: 100
-    });
-    return { listo:true, gate:g, analisis:a, freq: aciertos / stats.digits.length };
-  }
-
-  function pintarSemaforo() {
-    var t = $('tarjetaLuz');
-    var a = estado.ultimoAnalisis;
-    var c = cfg();
+    estado.analisis = a;
     if (!a) return;
 
     $('exitoRonda').textContent = pct(a.probExito);
+    var m = $('medioRonda');
+    m.textContent = usd(a.veRonda);
+    m.className = 'grande ' + (a.veRonda >= 0 ? 'pos' : 'neg');
 
-    if (!estado.corriendo) {
-      estado.enVerde = false;
-      pararCuenta();
-      t.className = 'card luz';
-      $('luzTexto').textContent = 'Detenido';
-      $('luzSub').textContent = 'Pulsa INICIAR para observar el mercado.';
-      $('momento').textContent = '—';
-      return;
-    }
-
-    var m = evaluarMomento();
-    if (!m || !m.listo) {
-      estado.enVerde = false;
-      pararCuenta();
-      t.className = 'card luz';
-      $('luzTexto').textContent = 'Midiendo…';
-      $('luzSub').textContent = 'Acumulando ticks (' + (m ? m.n : 0) + ' de 100).';
-      $('momento').textContent = '—';
-      return;
-    }
-
-    var pMomento = m.gate.probProfitable;
-    $('momento').textContent = pct(pMomento);
-
-    var mejor = estado.mejorIndice;
-    var enMejor = !mejor || mejor.sym === c.simbolo;
-    var peorRonda = mejor && !enMejor && (mejor.exito - a.probExito) > 0.03;
-
-    var luz, texto, sub;
-    if (peorRonda) {
-      luz = 'ambar';
-      texto = 'CAMBIA DE INDICE';
-      estado.enVerde = false;
-      sub = 'En ' + mejor.nombre + ' esta misma ronda tiene ' + pct(mejor.exito) +
-            ' de exito, frente al ' + pct(a.probExito) + ' de aqui.';
-      pararCuenta();
-      t.className = 'card luz ' + luz;
-      $('luzTexto').textContent = texto;
-      $('luzSub').textContent = sub;
-      return;
-    }
-    if (a.probExito < 0.40) {
-      estado.enVerde = false;
-      pararCuenta();
-      luz = 'rojo';
-      texto = 'NO ENTRAR';
-      sub = 'La configuracion es mala: solo ' + pct(a.probExito) +
-            ' de cerrar en verde. Aplica una ronda recomendada abajo.';
-    } else if (pMomento < (estado.enVerde ? 0.40 : 0.50)) {
-      estado.enVerde = false;
-      pararCuenta();
-      luz = 'ambar';
-      texto = 'ESPERA';
-      sub = 'La configuracion aguanta (' + pct(a.probExito) + '), pero ahora mismo el evento ' +
-            'va por debajo de su equilibrio. Espera al verde.';
-    } else {
+    var t = $('tarjetaLuz'), luz, texto, sub;
+    if (a.probExito >= 0.55) {
+      luz='verde'; texto='CONFIGURACION BUENA';
+      sub = 'Mas de la mitad de las rondas asi cierran en positivo. Puedes darle a Run.';
       estado.enVerde = true;
-      arrancarCuenta();
-      luz = 'verde';
-      texto = 'PUEDES ENTRAR';
-      sub = 'Configuracion de ' + pct(a.probExito) + ' de exito y el evento esta en o por ' +
-            'encima del equilibrio. Es de los mejores momentos disponibles.';
+    } else if (a.probExito >= 0.40) {
+      luz='ambar'; texto='CONFIGURACION JUSTA';
+      sub = 'Cierra en verde ' + pct(a.probExito) + ' de las veces. Mira abajo si hay un ' +
+            'objetivo mejor con el mismo riesgo.';
+      estado.enVerde = false;
+    } else {
+      luz='rojo'; texto='CAMBIA EL OBJETIVO';
+      sub = 'Solo ' + pct(a.probExito) + ' de las rondas asi cierran en positivo. ' +
+            'Abajo tienes el objetivo que lo arregla.';
+      estado.enVerde = false;
     }
-
     t.className = 'card luz ' + luz;
     $('luzTexto').textContent = texto;
     $('luzSub').textContent = sub;
 
-    $('luzDetalle').innerHTML =
-      'Medido sobre ' + stats.digits.length + ' ticks: el evento ocurre el <b>' +
-      pct(m.freq, 2) + '</b> de las veces y necesita <b>' + pct(a.equilibrio, 2) +
-      '</b> para cubrir el pago. Resultado medio de esta ronda: <b>' +
-      usd(a.veRonda) + ' USD</b>.';
+    if (estado.enVerde && estado.corriendo) arrancarCuenta(); else pararCuenta();
+    recomendar(a);
   }
 
-  /* --------------------------- Mercado en vivo -------------------------- */
+  /* ------------------------- La mejor ronda ----------------------------- */
 
-  function pintarMercado() {
-    if (!stats.digits.length) return;
-    var rep = stats.report(1000);
-    $('precio').textContent = Number(rep.lastPrice).toFixed(estado.pipSize);
+  function recomendar(a) {
+    var c = cfg();
+    var r = window.Ronda.recomendar(c);
+    if (!r) return;
 
-    var c = $('digito');
-    c.textContent = rep.last;
-    c.style.background = COLORES[rep.last];
-
-    var b = $('barras');
-    if (b.children.length !== 10) {
-      b.innerHTML = '';
-      for (var i = 0; i < 10; i++) {
-        var d = document.createElement('div');
-        d.className = 'bar';
-        d.innerHTML = '<u></u><i></i><em>' + i + '</em>';
-        b.appendChild(d);
-      }
-    }
-    var mx = Math.max.apply(null, rep.pct) || 0.1;
-    for (var k = 0; k < 10; k++) {
-      var el = b.children[k];
-      el.className = 'bar' + (k === rep.hot ? ' hot' : k === rep.cold ? ' cold' : '');
-      el.querySelector('u').textContent = (rep.pct[k] * 100).toFixed(1);
-      el.querySelector('i').style.height = Math.max(2, (rep.pct[k] / mx) * 100) + '%';
+    /* Un solo "mejor" enganaba: la maxima probabilidad siempre sale con el
+       objetivo mas pequeno, y arriesgar 15 para ganar 1 no es un consejo.
+       Se muestran tres opciones con su compensacion a la vista. */
+    function cercano(tp) {
+      var mejor = null, dif = 1e9;
+      r.todas.forEach(function (o) {
+        var d = Math.abs(o.tp - tp);
+        if (d < dif) { dif = d; mejor = o; }
+      });
+      return mejor;
     }
 
-    $('sTicks').textContent = stats.digits.length;
-    var a = estado.ultimoAnalisis;
-    if (a) {
-      var w = window.Edge.countWins(stats.digits, cfg().tipo, cfg().barrera);
-      $('sFreq').textContent = pct(w / stats.digits.length, 2);
-      $('sEq').textContent = pct(a.equilibrio, 2);
-    }
-    $('sChi').textContent = rep.pValue === null ? '—'
-      : rep.chi2.toFixed(1) + ' (' + rep.pValue.toFixed(3) + ')';
+    var opciones = [
+      { et:'Conservadora',  o: cercano(c.sl * 0.15), nota:'Cierra en verde mas a menudo' },
+      { et:'Equilibrada',   o: cercano(c.sl * 0.5),  nota:'Reparto razonable' },
+      { et:'Ambiciosa',     o: cercano(c.sl * 1.5),  nota:'Paga mas, acierta menos' }
+    ].filter(function (x, i, arr) {
+      return x.o && arr.findIndex(function (y) { return y.o && y.o.tp === x.o.tp; }) === i;
+    });
+
+    var actualTp = c.tp;
+    $('mejorRonda').innerHTML =
+      '<p class="note" style="margin-bottom:.7rem">Arriesgando <b>' + c.sl.toFixed(0) +
+      ' USD</b>, estas son tus tres opciones. Cuanto mas alto el objetivo, menos ' +
+      'probable es alcanzarlo.</p>' +
+      '<div class="opciones">' + opciones.map(function (x) {
+        var act = Math.abs(x.o.tp - actualTp) < 0.01;
+        return '<button class="opcion' + (act ? ' actual' : '') + '" data-tp="' + x.o.tp + '">' +
+          '<span class="et">' + x.et + (act ? ' · la tuya' : '') + '</span>' +
+          '<b>+' + x.o.tp.toFixed(2) + ' USD</b>' +
+          '<span class="prob">' + pct(x.o.exito) + ' de exito</span>' +
+          '<small>' + x.nota + ' · ' + Math.round(x.o.ops) + ' operaciones</small>' +
+          '</button>';
+      }).join('') + '</div>';
+
+    Array.prototype.forEach.call($('mejorRonda').querySelectorAll('.opcion'), function (b) {
+      b.addEventListener('click', function () {
+        $('tp').value = b.dataset.tp; guardar(); calcular();
+      });
+    });
+
+    var paso = Math.max(1, Math.ceil(r.todas.length / 10));
+    var filas = r.todas.filter(function (o, i) {
+      return i % paso === 0 || Math.abs(o.tp - actualTp) < 0.01; });
+    $('tablaTp').querySelector('tbody').innerHTML = filas.map(function (o) {
+      return '<tr class="' + (Math.abs(o.tp - actualTp) < 0.01 ? 'actual' : '') + '">' +
+        '<td>+' + o.tp.toFixed(2) + '</td><td><b>' + pct(o.exito) + '</b></td>' +
+        '<td class="' + (o.ve >= 0 ? 'pos' : 'neg') + '">' + usd(o.ve) + '</td>' +
+        '<td>' + Math.round(o.ops) + '</td></tr>';
+    }).join('');
   }
 
-  /* ----------------------------- Conexion ------------------------------- */
+  /* --------------------------- Cuenta atras ----------------------------- */
 
-  function iniciar() {
-    $('connDot').className = 'dot wait';
-    $('estadoBadge').textContent = 'conectando';
+  var VALIDEZ = 30;
+  function arrancarCuenta(){
+    if (estado.cuentaTimer) return;
+    estado.cuentaFin = Date.now() + VALIDEZ*1000;
+    $('cuenta').hidden = false;
+    estado.cuentaTimer = setInterval(pintarCuenta, 200);
+    pintarCuenta();
+  }
+  function pararCuenta(){
+    if (estado.cuentaTimer){ clearInterval(estado.cuentaTimer); estado.cuentaTimer=null; }
+    estado.cuentaFin = null;
+    if ($('cuenta')) $('cuenta').hidden = true;
+  }
+  function pintarCuenta(){
+    if (!estado.cuentaFin) return;
+    var r = Math.max(0, estado.cuentaFin - Date.now())/1000;
+    $('cuentaNum').textContent = r.toFixed(1)+'s';
+    $('cuentaBarra').style.width = (r/VALIDEZ*100)+'%';
+    if (r <= 0) estado.cuentaFin = Date.now() + VALIDEZ*1000;
+  }
+
+  /* ------------------------ Simbolos y mercado -------------------------- */
+
+  function pintarSimbolos(lista){
+    var sel = $('simbolo'), previo = sel.value;
+    sel.innerHTML = '';
+    lista.forEach(function(x){
+      var o = document.createElement('option');
+      o.value = x.symbol; o.textContent = x.display_name; o.dataset.pip = x.pip;
+      sel.appendChild(o);
+    });
+    if (lista.some(function(x){ return x.symbol === previo; })) sel.value = previo;
+    var opt = sel.options[sel.selectedIndex];
+    if (opt && opt.dataset.pip){
+      var pip = Number(opt.dataset.pip);
+      estado.pipSize = pip>0 ? Math.round(-Math.log10(pip)) : 2;
+    }
+  }
+
+  function conectar(){
     $('btnIniciar').disabled = true;
+    $('connStatus').textContent = 'Conectando…';
+    $('connDot').className = 'dot wait';
 
     api.connect(APP_ID)
-      .then(function () { return cargarSimbolos(); })
-      .then(function () {
-        stats.reset();
-        return api.ticksHistory(cfg().simbolo, 1000,
-          function (t) {
+      .then(function(){ return api.activeSymbols().catch(function(){ return []; }); })
+      .then(function(lista){
+        var utiles = lista.filter(function(x){
+          return x.submarket === 'random_index' ||
+                 /^(R_[0-9]+|1HZ[0-9]+V)$/.test(x.symbol);
+        });
+        // Si el filtro no encuentra nada, NO se vacia el desplegable.
+        if (utiles.length) pintarSimbolos(utiles);
+        return api.ticksHistory($('simbolo').value, 1000,
+          function(t){
             if (t.pip_size !== undefined) estado.pipSize = t.pip_size;
-            stats.push(t.quote, estado.pipSize);
-            pintarMercado(); pintarSemaforo();
+            stats.push(t.quote, estado.pipSize); pintarVivo();
           },
-          function (h, pip) {
+          function(h, pip){
             if (pip !== undefined) estado.pipSize = pip;
-            for (var i = 0; i < h.prices.length; i++) stats.push(h.prices[i], estado.pipSize);
-            pintarMercado(); pintarSemaforo();
+            for (var i=0;i<h.prices.length;i++) stats.push(h.prices[i], estado.pipSize);
+            pintarVivo();
           });
       })
-      .then(function (s) {
-        estado.sub = s.reqId;
-        estado.corriendo = true;
+      .then(function(s){
+        estado.sub = s.reqId; estado.corriendo = true;
         $('connDot').className = 'dot on';
         $('estadoBadge').textContent = 'en vivo';
         $('estadoBadge').className = 'badge demo';
-        $('btnIniciar').textContent = 'DETENER';
+        $('btnIniciar').textContent = 'Desconectar';
         $('btnIniciar').disabled = false;
-        $('subtitle').textContent = 'Observando ' + $('simbolo').selectedOptions[0].textContent;
-        pedirPagoReal();
-        escanearPagos().then(pintarEscaner);
-        estado.escanTimer = setInterval(function () {
-          escanearPagos().then(pintarEscaner);
-        }, 45000);
+        $('connStatus').textContent = 'Recibiendo ticks reales de Deriv.';
+        $('vivo').hidden = false;
+        escanear();
+        estado.escanTimer = setInterval(escanear, 45000);
+        calcular();
       })
-      .catch(function (e) {
+      .catch(function(e){
+        api.disconnect();
+        estado.corriendo = false;
         $('connDot').className = 'dot';
-        $('estadoBadge').textContent = 'error';
         $('btnIniciar').disabled = false;
-        $('luzTexto').textContent = 'Sin conexion';
-        $('luzSub').textContent = 'No se pudo leer el mercado de Deriv: ' + e.message +
-          (e.code ? ' [' + e.code + ']' : '');
+        $('connStatus').textContent = 'No se pudo conectar (' + (e.code||'') + ' ' + e.message +
+          '). Los calculos de arriba siguen siendo validos.';
       });
   }
 
-  /* El pago verdadero lo cotiza la API; si no responde se usa el estimado. */
-  function pedirPagoReal() {
-    var c = cfg();
-    api.proposal({
-      amount: c.stake, contract_type: c.tipo, currency: 'USD',
-      duration: 1, duration_unit: 't', symbol: c.simbolo,
-      barrier: window.Ronda.CONTRATOS[c.tipo].barrera ? c.barrera : undefined
-    }).then(function (p) {
-      estado.pagoReal = p.payout / p.ask_price;
-      $('notaMercado').textContent = 'Pago confirmado con la API de Deriv: x' +
-        estado.pagoReal.toFixed(2) + '. Mismos datos que charts.deriv.com.';
-      refrescarTodo();
-    }).catch(function () {
-      estado.pagoReal = null;
-      $('notaMercado').textContent = 'La API no cotiza el pago sin cuenta; se usa el valor ' +
-        'tipico del contrato. Los datos de mercado si son reales.';
-    });
-  }
-
-  function detener() {
-    if (estado.escanTimer) { clearInterval(estado.escanTimer); estado.escanTimer = null; }
-    if (estado.sub !== null) { api.forget(estado.sub); estado.sub = null; }
+  function desconectar(){
+    if (estado.escanTimer){ clearInterval(estado.escanTimer); estado.escanTimer=null; }
+    if (estado.sub !== null){ api.forget(estado.sub); estado.sub=null; }
     api.disconnect();
     estado.corriendo = false;
     $('connDot').className = 'dot';
-    $('estadoBadge').textContent = 'detenido';
+    $('estadoBadge').textContent = 'sin conexion';
     $('estadoBadge').className = 'badge';
-    $('btnIniciar').textContent = 'INICIAR';
-    pintarSemaforo();
+    $('btnIniciar').textContent = 'Conectar al mercado';
+    $('connStatus').textContent = 'No conectado. Los calculos de arriba ya son validos.';
+    $('vivo').hidden = true;
+    pararCuenta();
   }
 
-  $('btnIniciar').addEventListener('click', function () {
-    if (estado.corriendo) detener(); else iniciar();
+  $('btnIniciar').addEventListener('click', function(){
+    if (estado.corriendo) desconectar(); else conectar();
   });
 
-  /* ------------------------------- Enlaces ------------------------------ */
+  function pintarVivo(){
+    if (!stats.digits.length) return;
+    var rep = stats.report(1000), c = cfg();
+    $('precio').textContent = Number(rep.lastPrice).toFixed(estado.pipSize);
+    var d = $('digito'); d.textContent = rep.last; d.style.background = COLORES[rep.last];
 
-  function refrescarTodo() {
-    $('labBarrera').style.display =
-      window.Ronda.CONTRATOS[$('tipo').value].barrera ? '' : 'none';
-    analizarConfig();
-    recomendar();
-    pintarSemaforo();
-    pintarMercado();
+    var b = $('barras');
+    if (b.children.length !== 10){
+      b.innerHTML='';
+      for (var i=0;i<10;i++){ var e=document.createElement('div');
+        e.className='bar'; e.innerHTML='<u></u><i></i><em>'+i+'</em>'; b.appendChild(e); }
+    }
+    var mx = Math.max.apply(null, rep.pct) || 0.1;
+    for (var k=0;k<10;k++){
+      var el=b.children[k];
+      el.className='bar'+(k===rep.hot?' hot':k===rep.cold?' cold':'');
+      el.querySelector('u').textContent=(rep.pct[k]*100).toFixed(1);
+      el.querySelector('i').style.height=Math.max(2,(rep.pct[k]/mx)*100)+'%';
+    }
+    $('sTicks').textContent = stats.digits.length;
+    var w = window.Edge.countWins(stats.digits, c.tipo, c.barrera);
+    $('sFreq').textContent = pct(w/stats.digits.length, 2);
+    if (estado.analisis) $('sEq').textContent = pct(estado.analisis.equilibrio, 2);
+    $('sChi').textContent = rep.pValue===null ? '—'
+      : rep.chi2.toFixed(1)+' ('+rep.pValue.toFixed(3)+')';
   }
 
-  ['simbolo','tipo','barrera','stake','tp','sl'].forEach(function (id) {
-    $(id).addEventListener('change', function () {
-      guardar();
-      if (id === 'simbolo' && estado.corriendo) { detener(); iniciar(); }
-      else refrescarTodo();
-    });
-    $(id).addEventListener('input', function () { guardar(); refrescarTodo(); });
+  /* ---------------- Escaner: que indice da la mejor ronda --------------- */
+
+  function escanear(){
+    if (!estado.corriendo) return;
+    var c = cfg(), lleva = window.Ronda.CONTRATOS[c.tipo].barrera;
+    var syms = Array.prototype.map.call($('simbolo').options, function(o){ return o.value; });
+    var out = [], i = 0;
+
+    (function sig(){
+      if (i >= syms.length) return pintarEscaner(out);
+      var s = syms[i++];
+      api.proposal({ amount:c.stake, contract_type:c.tipo, currency:'USD',
+        duration:1, duration_unit:'t', symbol:s, barrier: lleva ? c.barrera : undefined })
+        .then(function(p){
+          var mult = p.payout/p.ask_price;
+          var an = window.Ronda.analizar({ tipo:c.tipo, barrera:c.barrera,
+                     stake:c.stake, tp:c.tp, sl:c.sl, pago:mult });
+          var nom = '';
+          Array.prototype.forEach.call($('simbolo').options, function(o){
+            if (o.value === s) nom = o.textContent; });
+          out.push({ sym:s, nombre:nom||s, pago:mult, exito: an?an.probExito:0 });
+        })
+        .catch(function(){})
+        .then(function(){ setTimeout(sig, 110); });
+    })();
+  }
+
+  function pintarEscaner(lista){
+    if (!lista.length){ $('escaner').innerHTML=''; $('notaEscaner').hidden=true; return; }
+    lista.sort(function(a,b){ return b.exito - a.exito; });
+    var actual = $('simbolo').value;
+    $('escaner').innerHTML = '<div class="table-wrap"><table><thead><tr>' +
+      '<th>Indice</th><th>Exito de tu ronda</th><th>Pago</th></tr></thead><tbody>' +
+      lista.map(function(x,n){
+        return '<tr class="'+(x.sym===actual?'actual':n===0?'good':'')+'">' +
+          '<td>'+x.nombre+(n===0?' ★':'')+'</td>' +
+          '<td><b>'+pct(x.exito)+'</b></td><td>x'+x.pago.toFixed(2)+'</td></tr>';
+      }).join('') + '</tbody></table></div>';
+
+    var nota = $('notaEscaner'); nota.hidden = false;
+    if (lista[0].sym !== actual){
+      nota.innerHTML = 'Tu misma ronda tiene <b>'+pct(lista[0].exito)+'</b> de exito en <b>'+
+        lista[0].nombre+'</b>. Cambialo aqui y en el desplegable <b>Market</b> del bot.';
+    } else {
+      nota.innerHTML = 'Estas en el indice que mejor ronda da: <b>'+pct(lista[0].exito)+'</b>.';
+    }
+    // El pago real manda sobre el estimado
+    $('pago').value = lista.filter(function(x){ return x.sym===actual; })
+                           .map(function(x){ return x.pago.toFixed(2); })[0] || $('pago').value;
+    calcular();
+  }
+
+  /* ------------------------------ Arranque ------------------------------ */
+
+  ['tipo','barrera','stake','pago','tp','sl'].forEach(function(id){
+    $(id).addEventListener('input', function(){ guardar(); calcular(); });
+    $(id).addEventListener('change', function(){ guardar(); calcular(); });
+  });
+  $('tipo').addEventListener('change', function(){ pagoSugerido(); guardar(); calcular(); });
+  $('simbolo').addEventListener('change', function(){
+    guardar();
+    if (estado.corriendo){ desconectar(); conectar(); }
   });
 
+  pintarSimbolos(RESERVA);
   cargar();
-  refrescarTodo();
-  setInterval(function () { if (estado.corriendo) pintarSemaforo(); }, 2000);
+  calcular();
 })();

@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Semaforo de Rondas — Deriv</title>
-<link rel="stylesheet" href="css/style.css?v=20260911-24">
-<link rel="stylesheet" href="css/semaforo.css?v=20260911-24">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚦</text></svg>">
+<title>Planificador de Rondas — Deriv</title>
+<link rel="stylesheet" href="css/style.css?v=20260911-25">
+<link rel="stylesheet" href="css/semaforo.css?v=20260911-25">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
 </head>
 <body>
 
@@ -14,175 +14,130 @@
   <div class="brand">
     <span class="dot" id="connDot"></span>
     <div>
-      <h1>Semaforo de Rondas</h1>
-      <p id="subtitle">Indica cuando abrir una ronda en tu bot</p>
+      <h1>Planificador de Rondas</h1>
+      <p>Tu probabilidad exacta antes de pulsar Run</p>
     </div>
   </div>
-  <span class="badge" id="estadoBadge">detenido</span>
+  <span class="badge" id="estadoBadge">sin conexion</span>
 </header>
 
 <main>
 
-  <!-- ============ SEMAFORO ============ -->
+  <!-- ======= 1. VEREDICTO ======= -->
   <div class="card luz" id="tarjetaLuz">
-    <div class="semaforo">
-      <span class="foco rojo"   id="focoRojo"></span>
-      <span class="foco ambar"  id="focoAmbar"></span>
-      <span class="foco verde"  id="focoVerde"></span>
-    </div>
     <div class="veredicto">
-      <b id="luzTexto">Pulsa INICIAR</b>
-      <span id="luzSub">La herramienta observa el mercado real de Deriv y te avisa.</span>
+      <b id="luzTexto">—</b>
+      <span id="luzSub"></span>
     </div>
-
-    <button class="btn big" id="btnIniciar">INICIAR</button>
-
+    <div class="marcador">
+      <div><span class="k">Probabilidad de exito</span><b class="grande" id="exitoRonda">—</b></div>
+      <div><span class="k">Resultado medio</span><b class="grande" id="medioRonda">—</b></div>
+    </div>
     <div class="cuenta" id="cuenta" hidden>
       <span class="k">Esta lectura caduca en</span>
       <b id="cuentaNum">—</b>
       <div class="cuenta-barra"><div id="cuentaBarra"></div></div>
-      <small>Se renueva sola mientras siga en verde. Si la condicion se rompe, desaparece.</small>
     </div>
-
-    <div class="marcador">
-      <div>
-        <span class="k">Exito de esta ronda</span>
-        <b class="grande" id="exitoRonda">—</b>
-      </div>
-      <div>
-        <span class="k">Momento actual</span>
-        <b class="grande" id="momento">—</b>
-      </div>
-    </div>
-    <p class="note" id="luzDetalle">Configura abajo los mismos valores que tengas en el bot.</p>
   </div>
 
-  <!-- ============ CONFIGURACION DEL BOT ============ -->
+  <!-- ======= 2. TU BOT ======= -->
   <div class="card">
-    <h2>1 · Tu configuracion del bot</h2>
-    <p class="note">Copia aqui exactamente lo que tienes en los bloques del XML.</p>
-
-    <label>Indice
-      <select id="simbolo">
-        <option value="1HZ75V" selected>Volatility 75 (1s) Index</option>
-        <option value="1HZ100V">Volatility 100 (1s) Index</option>
-        <option value="1HZ50V">Volatility 50 (1s) Index</option>
-        <option value="1HZ25V">Volatility 25 (1s) Index</option>
-        <option value="1HZ10V">Volatility 10 (1s) Index</option>
-        <option value="R_75">Volatility 75 Index</option>
-        <option value="R_100">Volatility 100 Index</option>
-      </select>
-    </label>
-
+    <h2>Tu bot</h2>
+    <p class="note">Copia los valores de los bloques del XML. El calculo es inmediato
+       y no necesita conexion.</p>
     <div class="grid2">
-      <label>Tipo de contrato
+      <label>Contrato
         <select id="tipo">
-          <option value="DIGITMATCH" selected>Matches</option>
-          <option value="DIGITDIFF">Differs</option>
-          <option value="DIGITEVEN">Par</option>
-          <option value="DIGITODD">Impar</option>
+          <option value="DIGITMATCH" selected>Matches (paga x9)</option>
+          <option value="DIGITDIFF">Differs (paga x1.09)</option>
+          <option value="DIGITEVEN">Par (paga x1.95)</option>
+          <option value="DIGITODD">Impar (paga x1.95)</option>
           <option value="DIGITOVER">Over</option>
           <option value="DIGITUNDER">Under</option>
         </select>
       </label>
-      <label id="labBarrera">Prediccion (digito)
+      <label id="labBarrera">Digito
         <select id="barrera">
           <option>0</option><option>1</option><option>2</option><option>3</option><option>4</option>
           <option selected>5</option><option>6</option><option>7</option><option>8</option><option>9</option>
         </select>
       </label>
-    </div>
-
-    <div class="grid2">
-      <label>Stake por operacion (USD)
+      <label>Stake (USD)
         <input id="stake" type="number" step="0.5" min="0.35" value="1">
       </label>
-      <label>Duracion
-        <select id="duracion"><option value="1" selected>1 tick</option></select>
+      <label>Pago
+        <input id="pago" type="number" step="0.01" min="1" value="8.93">
       </label>
-      <label>Objetivo de ganancia · TP (USD)
-        <input id="tp" type="number" step="1" min="1" value="30">
+      <label>Objetivo · TP (USD)
+        <input id="tp" type="number" step="1" min="1" value="8">
       </label>
-      <label>Limite de perdida · SL (USD)
-        <input id="sl" type="number" step="1" min="1" value="10">
+      <label>Limite · SL (USD)
+        <input id="sl" type="number" step="1" min="1" value="15">
       </label>
     </div>
   </div>
 
-  <!-- ============ DIAGNOSTICO DE LA CONFIGURACION ============ -->
-  <div class="card">
-    <h2>2 · Que dice esta configuracion</h2>
-    <div class="stats-grid">
-      <div><span class="k">Acierto por operacion</span><b id="dAcierto">—</b></div>
-      <div><span class="k">Pago</span><b id="dPago">—</b></div>
-      <div><span class="k">Necesario para no perder</span><b id="dEquilibrio">—</b></div>
-      <div><span class="k">Duracion media</span><b id="dDuracion">—</b></div>
-    </div>
-    <div class="ev-out" id="dResumen"></div>
-  </div>
-
-  <!-- ============ RONDAS RECOMENDADAS ============ -->
-  <div class="card">
-    <h2>3 · Rondas recomendadas</h2>
-    <p class="note">Con tu mismo riesgo, estos son los objetivos que dan mejor resultado.
-       Pulsa uno para aplicarlo.</p>
-    <div class="recos" id="recos"></div>
+  <!-- ======= 3. TU MEJOR RONDA ======= -->
+  <div class="card destacada">
+    <h2>Tu mejor ronda con ese riesgo</h2>
+    <div id="mejorRonda"></div>
     <div class="table-wrap">
       <table id="tablaTp">
-        <thead><tr><th>Objetivo</th><th>Exito</th><th>Resultado medio</th><th>Duracion</th></tr></thead>
+        <thead><tr><th>Objetivo</th><th>Exito</th><th>Medio</th><th>Duracion</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
   </div>
 
-  <!-- ============ ESCANER DE PAGOS ============ -->
+  <!-- ======= 4. MERCADO EN VIVO (OPCIONAL) ======= -->
   <div class="card">
-    <h2>4 · Donde la ronda tiene mas exito</h2>
-    <p class="note">Con tu mismo objetivo y limite, cotiza cada indice y calcula la
-       probabilidad exacta de que la ronda llegue al objetivo antes que al limite.
-       Ordenados de mejor a peor.</p>
-    <div id="escaner"><p class="note">Pulsa INICIAR para cotizar.</p></div>
-    <p class="honest" id="notaEscaner"></p>
-  </div>
-
-  <!-- ============ MERCADO EN VIVO ============ -->
-  <div class="card">
-    <h2>5 · Mercado en vivo</h2>
-    <div class="live-head">
-      <div><span class="k">Ultimo precio</span><span class="price" id="precio">—</span></div>
-      <div class="digit-wrap"><span class="k">Ultimo digito</span>
-        <div class="digit-circle" id="digito">—</div></div>
+    <h2>Mercado en vivo <span class="opc">opcional</span></h2>
+    <p class="note">Lo de arriba ya funciona sin esto. Conectar anade el pago real de cada
+       indice y el ultimo digito en directo.</p>
+    <label>Indice
+      <select id="simbolo"></select>
+    </label>
+    <button class="btn" id="btnIniciar">Conectar al mercado</button>
+    <p class="status" id="connStatus">No conectado. Los calculos de arriba ya son validos.</p>
+    <div id="vivo" hidden>
+      <div class="live-head">
+        <div><span class="k">Ultimo precio</span><span class="price" id="precio">—</span></div>
+        <div class="digit-wrap"><span class="k">Ultimo digito</span>
+          <div class="digit-circle" id="digito">—</div></div>
+      </div>
+      <div class="bars" id="barras"></div>
+      <div class="stats-grid">
+        <div><span class="k">Ticks</span><b id="sTicks">0</b></div>
+        <div><span class="k">Frecuencia</span><b id="sFreq">—</b></div>
+        <div><span class="k">Equilibrio</span><b id="sEq">—</b></div>
+        <div><span class="k">Chi² (p)</span><b id="sChi">—</b></div>
+      </div>
     </div>
-    <div class="bars" id="barras"></div>
-    <div class="stats-grid">
-      <div><span class="k">Ticks</span><b id="sTicks">0</b></div>
-      <div><span class="k">Frecuencia medida</span><b id="sFreq">—</b></div>
-      <div><span class="k">Equilibrio</span><b id="sEq">—</b></div>
-      <div><span class="k">Chi² (p)</span><b id="sChi">—</b></div>
-    </div>
-    <p class="note" id="notaMercado">Los datos son los mismos que muestra charts.deriv.com</p>
+    <div id="escaner"></div>
+    <p class="honest" id="notaEscaner" hidden></p>
   </div>
 
   <div class="card warn">
-    <h2>Lo que el verde significa y lo que no</h2>
-    <p><b>Verde no quiere decir que ganes.</b> Quiere decir que, con tu configuracion, este
-       es de los mejores momentos disponibles: la frecuencia medida del evento esta en o por
-       encima del punto de equilibrio.</p>
-    <p>Todos los contratos de digitos tienen valor esperado negativo. El semaforo te ayuda a
-       elegir <b>cuando</b> y <b>con que objetivos</b>, no a convertir en positivo algo que no
-       lo es. El numero de «resultado medio por ronda» te dice exactamente cuanto cuesta.</p>
+    <h2>Que es y que no es este semaforo</h2>
+    <p><b>Verde</b> = tu configuracion tiene buena probabilidad de cerrar la ronda en
+       positivo. <b>Rojo</b> = no la tiene, y conviene cambiar el objetivo.</p>
+    <p>No detecta «el momento de ganar». En estos contratos ese momento no existe: cada
+       tick es independiente y la probabilidad es siempre la misma. Lo que si existe, y es
+       lo que mide esta pagina, es que <b>unas configuraciones son mucho mejores que
+       otras</b>. Con el mismo riesgo, el objetivo correcto puede duplicar tu probabilidad
+       de cerrar en verde.</p>
   </div>
 </main>
 
 <footer>
-  <p>No es asesoria financiera. Los datos son publicos; esta pagina no accede a tu cuenta.<br>
-     <span id="appVersion">version 20260911-24</span></p>
+  <p>No es asesoria financiera. No accede a tu cuenta.<br>
+     <span id="appVersion">version 20260911-25</span></p>
 </footer>
 
-<script src="js/api.js?v=20260911-24"></script>
-<script src="js/stats.js?v=20260911-24"></script>
-<script src="js/edge.js?v=20260911-24"></script>
-<script src="js/ronda.js?v=20260911-24"></script>
-<script src="js/semaforo.js?v=20260911-24"></script>
+<script src="js/api.js?v=20260911-25"></script>
+<script src="js/stats.js?v=20260911-25"></script>
+<script src="js/edge.js?v=20260911-25"></script>
+<script src="js/ronda.js?v=20260911-25"></script>
+<script src="js/semaforo.js?v=20260911-25"></script>
 </body>
 </html>
