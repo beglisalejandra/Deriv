@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Digits Trading Analytics — Deriv</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="dot" id="connDot"></span>
+    <div>
+      <h1>Digits Trading Analytics</h1>
+      <p id="subtitle">Analisis de digitos en vivo + operacion automatica</p>
+    </div>
+  </div>
+  <span class="badge" id="accountBadge">sin conectar</span>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-tab="panel">Panel</button>
+  <button class="tab" data-tab="pagos">Pagos</button>
+  <button class="tab" data-tab="bot">Bot</button>
+  <button class="tab" data-tab="resultados">Resultados</button>
+  <button class="tab" data-tab="realidad">Realidad</button>
+</nav>
+
+<main>
+
+<!-- ================== PANEL ================== -->
+<section class="view active" id="view-panel">
+
+  <div class="card" id="connCard">
+    <h2>1 · Conexion</h2>
+    <label>App ID
+      <input id="appId" type="text" inputmode="numeric" value="1089">
+      <small>1089 es el ID publico de pruebas. Registra el tuyo en api.deriv.com para uso continuo.</small>
+    </label>
+    <label>API Token
+      <input id="apiToken" type="password" placeholder="Token con permisos Read + Trade" autocomplete="off">
+      <small>Crealo en <b>app.deriv.com → Configuracion → API token</b>. Empieza con una cuenta <b>Demo</b>.</small>
+    </label>
+    <label class="check">
+      <input id="rememberToken" type="checkbox">
+      <span>Recordar el token en este dispositivo (se guarda en localStorage, sin cifrar)</span>
+    </label>
+    <div class="row">
+      <button class="btn primary" id="btnConnect">Conectar</button>
+      <button class="btn ghost" id="btnDisconnect" disabled>Desconectar</button>
+    </div>
+    <p class="status" id="connStatus">Desconectado.</p>
+  </div>
+
+  <div class="card">
+    <h2>2 · Mercado y estrategia</h2>
+    <label>Indice
+      <select id="symbol"></select>
+    </label>
+    <div class="grid2">
+      <label>Estrategia
+        <select id="strategy"></select>
+      </label>
+      <label>Ventana de analisis
+        <select id="windowTicks">
+          <option value="25">25 ticks</option>
+          <option value="50">50 ticks</option>
+          <option value="100" selected>100 ticks</option>
+          <option value="250">250 ticks</option>
+          <option value="500">500 ticks</option>
+          <option value="1000">1000 ticks</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="btnAnalysis" disabled>Iniciar analisis</button>
+      <button class="btn ghost" id="btnPredict" disabled>Predecir</button>
+    </div>
+  </div>
+
+  <div class="card live" id="liveCard">
+    <div class="live-head">
+      <div>
+        <span class="k">Ultimo precio</span>
+        <span class="price" id="lastPrice">—</span>
+      </div>
+      <div class="digit-wrap">
+        <span class="k">Ultimo digito</span>
+        <div class="digit-circle" id="lastDigit">—</div>
+      </div>
+    </div>
+
+    <div class="bars" id="digitBars"></div>
+
+    <div class="stats-grid">
+      <div><span class="k">Ticks</span><b id="stTotal">0</b></div>
+      <div><span class="k">Par / Impar</span><b id="stEvenOdd">—</b></div>
+      <div><span class="k">Racha</span><b id="stStreak">—</b></div>
+      <div><span class="k">Chi² (p)</span><b id="stChi">—</b></div>
+    </div>
+    <p class="note" id="uniformNote">Esperando ticks…</p>
+  </div>
+
+  <div class="card prediction" id="predCard" hidden>
+    <div class="pred-head">
+      <div><span class="k">Tipo de prediccion</span><b class="pred-type" id="predType">—</b></div>
+      <div class="right"><span class="k">Mercado</span><b id="predMarket">—</b></div>
+    </div>
+    <span class="k">Todos los digitos (prediccion resaltada)</span>
+    <div class="digit-row" id="predDigits"></div>
+    <div class="pred-metrics">
+      <div><span class="k">Prediccion</span><b class="big" id="predValue">—</b></div>
+      <div><span class="k">Frecuencia observada</span><b class="big" id="predObserved">—</b></div>
+      <div><span class="k">Estrategia</span><b id="predStrategy">—</b></div>
+    </div>
+    <p class="reason" id="predReason"></p>
+    <p class="honest" id="predHonest"></p>
+  </div>
+</section>
+
+<!-- ================== PAGOS ================== -->
+<section class="view" id="view-pagos">
+  <div class="card">
+    <h2>Escaner de pagos</h2>
+    <p class="note">Cotiza en vivo cada combinacion de contrato contra la API y muestra el
+      <b>multiplo real de pago</b>. Asi eliges las que pagan x7–x10 con stakes de 1, 3 o 5 USD.</p>
+    <div class="grid2">
+      <label>Stake a cotizar
+        <select id="scanStake">
+          <option value="1">1 USD</option>
+          <option value="3">3 USD</option>
+          <option value="5" selected>5 USD</option>
+          <option value="10">10 USD</option>
+        </select>
+      </label>
+      <label>Multiplo objetivo
+        <select id="scanTarget">
+          <option value="7" selected>x7 o mas</option>
+          <option value="9">x9 o mas</option>
+          <option value="4">x4 o mas</option>
+          <option value="0">mostrar todo</option>
+        </select>
+      </label>
+    </div>
+    <button class="btn primary" id="btnScan" disabled>Escanear pagos</button>
+    <div class="progress" id="scanProgress" hidden><div></div></div>
+  </div>
+  <div class="card">
+    <div class="table-wrap">
+      <table id="scanTable">
+        <thead><tr>
+          <th>Contrato</th><th>Barrera</th><th>Pago</th><th>Prob.</th><th>Valor esperado</th>
+        </tr></thead>
+        <tbody><tr><td colspan="5" class="empty">Sin datos. Conecta y pulsa «Escanear pagos».</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ================== BOT ================== -->
+<section class="view" id="view-bot">
+  <div class="card">
+    <h2>Operacion automatica</h2>
+
+    <label>Modo
+      <select id="mode">
+        <option value="sim" selected>Simulacion (sin dinero, liquida con ticks reales)</option>
+        <option value="real">Real (envia ordenes a tu cuenta)</option>
+      </select>
+    </label>
+
+    <div class="grid2">
+      <label>Stake base
+        <select id="baseStake">
+          <option value="1" selected>1 USD</option>
+          <option value="3">3 USD</option>
+          <option value="5">5 USD</option>
+        </select>
+      </label>
+      <label>Duracion
+        <select id="duration">
+          <option value="1" selected>1 tick</option>
+          <option value="2">2 ticks</option>
+          <option value="3">3 ticks</option>
+          <option value="5">5 ticks</option>
+        </select>
+      </label>
+    </div>
+
+    <label>Gestion de capital
+      <select id="money">
+        <option value="flat" selected>Fija (siempre el mismo stake)</option>
+        <option value="martingale">Martingala (multiplica tras perder)</option>
+        <option value="dalembert">D'Alembert (suma tras perder)</option>
+        <option value="fibonacci">Fibonacci</option>
+      </select>
+    </label>
+
+    <div class="grid2" id="mgRow" hidden>
+      <label>Factor
+        <input id="factor" type="number" step="0.1" min="1.1" max="5" value="2.2">
+      </label>
+      <label>Pasos maximos
+        <input id="maxSteps" type="number" step="1" min="1" max="15" value="5">
+      </label>
+    </div>
+
+    <h3>Limites de riesgo</h3>
+    <div class="grid2">
+      <label>Objetivo de ganancia (USD)
+        <input id="takeProfit" type="number" step="1" min="0" value="10">
+      </label>
+      <label>Perdida maxima (USD)
+        <input id="stopLoss" type="number" step="1" min="0" value="10">
+      </label>
+      <label>Stake maximo (USD)
+        <input id="maxStake" type="number" step="1" min="1" value="20">
+      </label>
+      <label>Operaciones maximas
+        <input id="maxTrades" type="number" step="1" min="0" value="50">
+      </label>
+      <label>Perdidas seguidas maximas
+        <input id="maxLossStreak" type="number" step="1" min="0" value="8">
+      </label>
+      <label>Pago minimo exigido
+        <select id="minPayoutMult">
+          <option value="0">sin filtro</option>
+          <option value="7" selected>x7</option>
+          <option value="9">x9</option>
+        </select>
+      </label>
+    </div>
+
+    <label class="check danger" id="realConfirmWrap" hidden>
+      <input id="realConfirm" type="checkbox">
+      <span>Entiendo que el modo real usa dinero de mi cuenta y que cada operacion tiene
+            valor esperado negativo.</span>
+    </label>
+
+    <div class="row">
+      <button class="btn run" id="btnRun" disabled>Ejecutar</button>
+      <button class="btn stop" id="btnStop" disabled>Detener</button>
+    </div>
+    <p class="status" id="botStatus">El bot no esta corriendo.</p>
+  </div>
+
+  <div class="card">
+    <h2>Registro</h2>
+    <div class="log" id="log"></div>
+  </div>
+</section>
+
+<!-- ================== RESULTADOS ================== -->
+<section class="view" id="view-resultados">
+  <div class="card">
+    <h2>Resumen</h2>
+    <div class="stats-grid four">
+      <div><span class="k">Operaciones</span><b id="rsTrades">0</b></div>
+      <div><span class="k">Aciertos</span><b id="rsWinRate">—</b></div>
+      <div><span class="k">Stake total</span><b id="rsStake">0.00</b></div>
+      <div><span class="k">Pago total</span><b id="rsPayout">0.00</b></div>
+      <div><span class="k">Ganancia / perdida</span><b id="rsPnl" class="pnl">0.00</b></div>
+      <div><span class="k">ROI</span><b id="rsRoi">—</b></div>
+      <div><span class="k">Racha perdedora</span><b id="rsStreak">0</b></div>
+      <div><span class="k">Caida maxima</span><b id="rsDD">0.00</b></div>
+    </div>
+    <div class="row">
+      <button class="btn ghost" id="btnCsv">Descargar CSV</button>
+      <button class="btn ghost" id="btnResetStats">Reiniciar contadores</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Operaciones</h2>
+    <div class="table-wrap">
+      <table id="tradesTable">
+        <thead><tr>
+          <th>#</th><th>Contrato</th><th>Stake</th><th>Digito</th><th>Resultado</th><th>P/L</th>
+        </tr></thead>
+        <tbody><tr><td colspan="6" class="empty">Todavia no hay operaciones.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ================== REALIDAD ================== -->
+<section class="view" id="view-realidad">
+  <div class="card warn">
+    <h2>Lo que dicen los numeros</h2>
+    <p>Los indices de volatilidad de Deriv se generan con un RNG auditado. Los ticks son
+       <b>independientes</b>: el ultimo digito de cada uno es uniforme sobre 0–9 y no guarda
+       memoria. Ninguna lectura del historial cambia la probabilidad del proximo tick.</p>
+    <p>Por eso el <b>x9</b> del video no es una ventaja: es el pago de un evento que ocurre
+       1 de cada 10 veces. Esta calculadora usa el pago que cotiza la API y la probabilidad
+       real del contrato.</p>
+  </div>
+
+  <div class="card">
+    <h2>Valor esperado por operacion</h2>
+    <div class="grid2">
+      <label>Contrato
+        <select id="evType">
+          <option value="DIGITMATCH">Matches (1 digito)</option>
+          <option value="DIGITDIFF">Differs</option>
+          <option value="DIGITOVER">Over</option>
+          <option value="DIGITUNDER">Under</option>
+          <option value="DIGITEVEN">Par</option>
+        </select>
+      </label>
+      <label>Barrera
+        <input id="evBarrier" type="number" min="0" max="9" value="8">
+      </label>
+      <label>Multiplo de pago
+        <input id="evPayout" type="number" step="0.01" min="1" value="8.93">
+      </label>
+      <label>Stake (USD)
+        <input id="evStake" type="number" step="1" min="1" value="1">
+      </label>
+    </div>
+    <div class="ev-out" id="evOut"></div>
+  </div>
+
+  <div class="card">
+    <h2>Riesgo de la martingala</h2>
+    <div class="grid2">
+      <label>Stake base (USD)
+        <input id="rkBase" type="number" step="1" min="1" value="1">
+      </label>
+      <label>Factor
+        <input id="rkFactor" type="number" step="0.1" min="1.1" value="2.2">
+      </label>
+      <label>Prob. de perder por operacion
+        <input id="rkLoss" type="number" step="0.01" min="0.01" max="0.99" value="0.9">
+      </label>
+      <label>Operaciones de la sesion
+        <input id="rkTrials" type="number" step="10" min="10" value="100">
+      </label>
+    </div>
+    <div class="table-wrap">
+      <table id="ladderTable">
+        <thead><tr><th>Perdida n°</th><th>Stake</th><th>Capital consumido</th><th>Prob. de llegar aqui</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="honest" id="rkOut"></p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <p>Herramienta de analisis y ejecucion. No es asesoria financiera. Empieza en cuenta Demo.</p>
+</footer>
+
+<script src="js/api.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/trader.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

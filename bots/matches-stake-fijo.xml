@@ -1,0 +1,149 @@
+<xml xmlns="https://developers.google.com/blockly/xml" is_dbot="true" collection="false">
+  <!--
+    Matches con stake fijo — Volatility 75 (1s) Index
+    Version recomendada: stake constante, con objetivo de ganancia y limite de perdida.
+    Importar en bot.deriv.com -> Local -> seleccionar este archivo.
+    Probar SIEMPRE primero en cuenta Demo.
+  -->
+  <variables>
+    <variable id="v_stake">stake</variable>
+    <variable id="v_pred">prediccion</variable>
+    <variable id="v_pnl">ganancia_acumulada</variable>
+    <variable id="v_tp">objetivo_ganancia</variable>
+    <variable id="v_sl">limite_perdida</variable>
+  </variables>
+
+  <block type="trade_definition" id="td" deletable="false" movable="false" x="0" y="0">
+    <statement name="TRADE_OPTIONS">
+      <block type="trade_definition_market" id="tdm" deletable="false" movable="false">
+        <field name="MARKET_LIST">synthetic_index</field>
+        <field name="SUBMARKET_LIST">random_index</field>
+        <field name="SYMBOL_LIST">1HZ75V</field>
+        <next>
+          <block type="trade_definition_tradetype" id="tdt" deletable="false" movable="false">
+            <field name="TRADETYPECAT_LIST">digits</field>
+            <field name="TRADETYPE_LIST">matchesdiffers</field>
+            <next>
+              <block type="trade_definition_contracttype" id="tdc" deletable="false" movable="false">
+                <field name="TYPE_LIST">DIGITMATCH</field>
+                <next>
+                  <block type="trade_definition_candleinterval" id="tdci" deletable="false" movable="false">
+                    <field name="CANDLEINTERVAL_LIST">60</field>
+                    <next>
+                      <block type="trade_definition_restartbuysell" id="tdrb" deletable="false" movable="false">
+                        <field name="TIME_MACHINE_ENABLED">FALSE</field>
+                        <next>
+                          <block type="trade_definition_restartonerror" id="tdre" deletable="false" movable="false">
+                            <field name="RESTARTONERROR">TRUE</field>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+    <statement name="INITIALIZATION">
+      <block type="variables_set" id="init1">
+        <field name="VAR" id="v_stake">stake</field>
+        <value name="VALUE"><block type="math_number" id="n1"><field name="NUM">1</field></block></value>
+        <next>
+          <block type="variables_set" id="init2">
+            <field name="VAR" id="v_pred">prediccion</field>
+            <value name="VALUE"><block type="math_number" id="n2"><field name="NUM">5</field></block></value>
+            <next>
+              <block type="variables_set" id="init3">
+                <field name="VAR" id="v_pnl">ganancia_acumulada</field>
+                <value name="VALUE"><block type="math_number" id="n3"><field name="NUM">0</field></block></value>
+                <next>
+                  <block type="variables_set" id="init4">
+                    <field name="VAR" id="v_tp">objetivo_ganancia</field>
+                    <value name="VALUE"><block type="math_number" id="n4"><field name="NUM">10</field></block></value>
+                    <next>
+                      <block type="variables_set" id="init5">
+                        <field name="VAR" id="v_sl">limite_perdida</field>
+                        <value name="VALUE"><block type="math_number" id="n5"><field name="NUM">10</field></block></value>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+    <statement name="SUBMARKET">
+      <block type="trade_definition_tradeoptions" id="tdo">
+        <field name="DURATIONTYPE_LIST">t</field>
+        <field name="CURRENCY_LIST">USD</field>
+        <value name="DURATION"><block type="math_number" id="n6"><field name="NUM">1</field></block></value>
+        <value name="AMOUNT">
+          <block type="variables_get" id="g1"><field name="VAR" id="v_stake">stake</field></block>
+        </value>
+        <value name="PREDICTION">
+          <block type="variables_get" id="g2"><field name="VAR" id="v_pred">prediccion</field></block>
+        </value>
+      </block>
+    </statement>
+  </block>
+
+  <block type="before_purchase" id="bp" deletable="false" movable="false" x="0" y="480">
+    <statement name="BEFOREPURCHASE_STACK">
+      <block type="purchase" id="pur">
+        <field name="PURCHASE_LIST">DIGITMATCH</field>
+      </block>
+    </statement>
+  </block>
+
+  <block type="after_purchase" id="ap" deletable="false" movable="false" x="0" y="620">
+    <statement name="AFTERPURCHASE_STACK">
+      <block type="variables_set" id="acc">
+        <field name="VAR" id="v_pnl">ganancia_acumulada</field>
+        <value name="VALUE">
+          <block type="math_arithmetic" id="sum">
+            <field name="OP">ADD</field>
+            <value name="A"><block type="variables_get" id="g3"><field name="VAR" id="v_pnl">ganancia_acumulada</field></block></value>
+            <value name="B"><block type="read_details" id="rd"><field name="DETAIL_INDEX">4</field></block></value>
+          </block>
+        </value>
+        <next>
+          <block type="controls_if" id="if1">
+            <mutation elseif="0" else="0"></mutation>
+            <value name="IF0">
+              <block type="logic_operation" id="lo">
+                <field name="OP">AND</field>
+                <value name="A">
+                  <block type="logic_compare" id="c1">
+                    <field name="OP">LT</field>
+                    <value name="A"><block type="variables_get" id="g4"><field name="VAR" id="v_pnl">ganancia_acumulada</field></block></value>
+                    <value name="B"><block type="variables_get" id="g5"><field name="VAR" id="v_tp">objetivo_ganancia</field></block></value>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="logic_compare" id="c2">
+                    <field name="OP">GT</field>
+                    <value name="A"><block type="variables_get" id="g6"><field name="VAR" id="v_pnl">ganancia_acumulada</field></block></value>
+                    <value name="B">
+                      <block type="math_single" id="neg">
+                        <field name="OP">NEG</field>
+                        <value name="NUM"><block type="variables_get" id="g7"><field name="VAR" id="v_sl">limite_perdida</field></block></value>
+                      </block>
+                    </value>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO0">
+              <block type="trade_again" id="ta"></block>
+            </statement>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>

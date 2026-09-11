@@ -1,0 +1,170 @@
+/* Digits Trading Analytics — tema "Teal Wave", mobile first */
+:root{
+  --bg:#eefaf8; --bg2:#ffffff; --ink:#0f2e2b; --muted:#5c807c;
+  --teal:#0d9488; --teal-d:#0f766e; --teal-l:#ccfbf1;
+  --red:#dc2626; --green:#16a34a; --amber:#d97706;
+  --line:#cfeae6; --radius:14px;
+  --shadow:0 1px 3px rgba(13,148,136,.12), 0 8px 24px rgba(13,148,136,.07);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-text-size-adjust:100%;
+}
+h1,h2,h3{margin:0 0 .5rem; line-height:1.25}
+h1{font-size:1.05rem; font-weight:700}
+h2{font-size:1rem; font-weight:700; color:var(--teal-d)}
+h3{font-size:.85rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+   color:var(--muted); margin-top:1.25rem}
+p{margin:0 0 .6rem}
+
+/* ---------- barra superior ---------- */
+.topbar{
+  position:sticky; top:0; z-index:20;
+  background:linear-gradient(135deg,var(--teal),var(--teal-d));
+  color:#fff; padding:.85rem 1rem; display:flex; align-items:center;
+  justify-content:space-between; gap:.75rem;
+}
+.topbar h1{color:#fff}
+.topbar p{margin:0; font-size:.72rem; opacity:.85}
+.brand{display:flex; align-items:center; gap:.6rem; min-width:0}
+.dot{width:10px;height:10px;border-radius:50%;background:#94a3b8;flex:0 0 auto;
+     box-shadow:0 0 0 3px rgba(255,255,255,.25)}
+.dot.on{background:#4ade80}
+.dot.wait{background:#fbbf24}
+.badge{
+  font-size:.66rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+  background:rgba(255,255,255,.2); padding:.3rem .55rem; border-radius:999px;
+  white-space:nowrap; flex:0 0 auto;
+}
+.badge.demo{background:#0891b2}
+.badge.real{background:var(--red)}
+
+/* ---------- pestañas ---------- */
+.tabs{
+  display:flex; gap:.25rem; padding:.5rem; background:var(--bg2);
+  border-bottom:1px solid var(--line); overflow-x:auto; position:sticky; top:60px; z-index:19;
+  -webkit-overflow-scrolling:touch; scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  flex:0 0 auto; border:0; background:transparent; color:var(--muted);
+  font:inherit; font-size:.82rem; font-weight:600; padding:.45rem .8rem;
+  border-radius:999px; cursor:pointer;
+}
+.tab.active{background:var(--teal-l); color:var(--teal-d)}
+
+main{padding:.75rem; max-width:720px; margin:0 auto}
+.view{display:none}
+.view.active{display:block}
+
+/* ---------- tarjetas ---------- */
+.card{
+  background:var(--bg2); border:1px solid var(--line); border-radius:var(--radius);
+  padding:1rem; margin-bottom:.75rem; box-shadow:var(--shadow);
+}
+.card.warn{background:#fffbeb; border-color:#fde68a}
+.card.warn h2{color:var(--amber)}
+
+label{display:block; margin-bottom:.75rem; font-size:.78rem; font-weight:600; color:var(--muted)}
+label small{display:block; font-weight:400; font-size:.7rem; margin-top:.3rem; color:var(--muted)}
+input,select{
+  width:100%; margin-top:.3rem; padding:.6rem .65rem; font:inherit; font-size:.9rem;
+  color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:10px;
+}
+input:focus,select:focus{outline:2px solid var(--teal); outline-offset:-1px; border-color:var(--teal)}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:0 .6rem}
+label.check{display:flex; align-items:flex-start; gap:.5rem; font-weight:400; font-size:.75rem}
+label.check input{width:auto; margin-top:.15rem; flex:0 0 auto}
+label.check.danger{background:#fef2f2; border:1px solid #fecaca; padding:.6rem; border-radius:10px; color:#991b1b}
+
+.row{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.25rem}
+.btn{
+  flex:1 1 auto; min-width:120px; border:0; border-radius:10px; padding:.7rem .9rem;
+  font:inherit; font-size:.88rem; font-weight:700; cursor:pointer; color:#fff; background:var(--teal);
+}
+.btn:disabled{opacity:.45; cursor:not-allowed}
+.btn.primary{background:var(--teal)}
+.btn.ghost{background:#fff; color:var(--teal-d); border:1px solid var(--line)}
+.btn.run{background:var(--green)}
+.btn.stop{background:var(--red)}
+.status{font-size:.76rem; color:var(--muted); margin:.6rem 0 0}
+.note{font-size:.75rem; color:var(--muted)}
+.honest{font-size:.75rem; color:var(--amber); background:#fffbeb; border-left:3px solid var(--amber);
+        padding:.5rem .6rem; border-radius:0 8px 8px 0; margin:.6rem 0 0}
+.reason{font-size:.78rem; color:var(--muted); margin:.6rem 0 0}
+
+/* ---------- panel en vivo ---------- */
+.live-head{display:flex; align-items:center; justify-content:space-between; gap:1rem}
+.k{display:block; font-size:.66rem; text-transform:uppercase; letter-spacing:.07em;
+   color:var(--muted); font-weight:700; margin-bottom:.15rem}
+.price{font-size:1.7rem; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+.digit-wrap{text-align:center}
+.digit-circle{
+  width:82px; height:82px; border-radius:50%; display:grid; place-items:center;
+  font-size:2.4rem; font-weight:700; color:#fff; background:#94a3b8;
+  transition:background .15s ease, transform .15s ease;
+}
+.digit-circle.pulse{transform:scale(1.06)}
+
+.bars{display:grid; grid-template-columns:repeat(10,1fr); gap:3px; align-items:end;
+      height:110px; margin:1rem 0 .35rem}
+.bar{display:flex; flex-direction:column; justify-content:flex-end; height:100%; text-align:center}
+.bar i{display:block; background:var(--teal); border-radius:4px 4px 0 0; min-height:2px;
+       transition:height .2s ease}
+.bar.hot i{background:var(--green)}
+.bar.cold i{background:var(--red)}
+.bar u{font-style:normal; text-decoration:none; font-size:.6rem; color:var(--muted); font-weight:700}
+.bar em{font-style:normal; font-size:.72rem; font-weight:700; margin-top:.2rem}
+
+.stats-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:.6rem; margin-top:.9rem}
+.stats-grid.four{grid-template-columns:repeat(2,1fr)}
+.stats-grid>div{background:var(--teal-l); border-radius:10px; padding:.55rem .5rem; text-align:center}
+.stats-grid b{font-size:.95rem; font-variant-numeric:tabular-nums}
+.pnl.up{color:var(--green)} .pnl.down{color:var(--red)}
+
+/* ---------- prediccion ---------- */
+.prediction{border-color:var(--teal); border-width:2px}
+.pred-head{display:flex; justify-content:space-between; gap:1rem; margin-bottom:.9rem}
+.pred-head .right{text-align:right}
+.pred-type{font-size:1.15rem; font-weight:800; color:var(--green); text-transform:uppercase}
+.digit-row{display:flex; gap:.3rem; justify-content:space-between; margin:.4rem 0 1rem}
+.digit-row span{
+  flex:1; aspect-ratio:1; display:grid; place-items:center; border-radius:50%;
+  font-size:.8rem; font-weight:700; background:#f1f5f9; color:var(--muted);
+}
+.digit-row span.on{background:var(--green); color:#fff; transform:scale(1.1)}
+.pred-metrics{display:grid; grid-template-columns:repeat(3,1fr); gap:.6rem; text-align:center}
+.pred-metrics .big{font-size:1.5rem; font-weight:800; color:var(--teal-d)}
+
+/* ---------- tablas ---------- */
+.table-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch}
+table{width:100%; border-collapse:collapse; font-size:.78rem; min-width:340px}
+th{text-align:left; font-size:.66rem; text-transform:uppercase; letter-spacing:.05em;
+   color:var(--muted); padding:.45rem .4rem; border-bottom:1px solid var(--line); white-space:nowrap}
+td{padding:.45rem .4rem; border-bottom:1px solid #eef7f5; font-variant-numeric:tabular-nums;
+   white-space:nowrap}
+td.empty{text-align:center; color:var(--muted); padding:1.2rem; white-space:normal}
+tr.win td{background:#f0fdf4} tr.lose td{background:#fef2f2}
+tr.good td{background:#f0fdf4; font-weight:600}
+.pos{color:var(--green); font-weight:700} .neg{color:var(--red); font-weight:700}
+
+/* ---------- misc ---------- */
+.log{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.7rem; line-height:1.6;
+  background:#062e2a; color:#a7f3d0; border-radius:10px; padding:.7rem;
+  max-height:240px; overflow-y:auto; white-space:pre-wrap; word-break:break-word;
+}
+.log div{border-bottom:1px solid rgba(167,243,208,.08); padding:.1rem 0}
+.progress{height:5px; background:var(--teal-l); border-radius:999px; overflow:hidden; margin-top:.6rem}
+.progress div{height:100%; width:0; background:var(--teal); transition:width .2s ease}
+.ev-out{background:var(--teal-l); border-radius:10px; padding:.8rem; font-size:.82rem; margin-top:.5rem}
+.ev-out b{font-variant-numeric:tabular-nums}
+.ev-out .line{display:flex; justify-content:space-between; gap:1rem; padding:.2rem 0}
+footer{padding:1.25rem 1rem 2rem; text-align:center; font-size:.7rem; color:var(--muted)}
+
+@media (min-width:600px){
+  .stats-grid.four{grid-template-columns:repeat(4,1fr)}
+  main{padding:1rem}
+}
