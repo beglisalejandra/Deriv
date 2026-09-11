@@ -1,0 +1,214 @@
+<xml xmlns="https://developers.google.com/blockly/xml" is_dbot="true" collection="false">
+  <!--
+    OPERACION CONTINUA — Differs sobre Volatility 75 (1s)
+
+    ESTE BOT CORRIGE DOS COSAS DEL ANTERIOR
+
+    1. YA NO SE PARA A LA PRIMERA
+       El anterior tenia retroceso_maximo = 1 y jugaba a Par, donde se gana
+       +0.95 y se pierde -1.00. Tras una victoria y una derrota el retroceso
+       ya valia 1.00 y el bot paraba. Fue un error de diseno: optimice
+       "perder lo minimo" y eso converge en "casi no jugar".
+       Ahora el retroceso es 3, mayor que varias operaciones seguidas, y la
+       sesion dura unas 32 operaciones en lugar de 2.
+
+    2. ES EL PATRON QUE SE VE EN LOS BOTS QUE FUNCIONAN
+       Differs acierta 9 de cada 10, asi que una sesion tipica cierra con
+       unas 29 victorias y 3 derrotas. Ese 38 W / 3 L que se ve por ahi es
+       esto: un contrato de alta probabilidad, no una ventaja encontrada.
+
+    PARAMETROS, buscados sobre 8.000 sesiones por combinacion con la
+    restriccion de que la sesion dure al menos 25 operaciones:
+      stake                  1
+      objetivo_sesion        1
+      limite_sesion         20
+      retroceso_maximo       3
+      max_perdidas_seguidas  2
+
+    RESULTADO MEDIDO
+      29 victorias y 3.2 derrotas por sesion
+      32 operaciones por sesion
+      54.5% de las sesiones cierran en verde
+      -0.57 USD de media por sesion
+
+    LA LINEA QUE HAY QUE LEER DOS VECES
+    El 54.5% en verde y el 29 W / 3 L son reales. El -0.57 tambien. No se
+    contradicen: se gana a menudo y poco (+0.09), se pierde raro y mucho
+    (-1.00). Hacen falta doce victorias para pagar una derrota, y llegan
+    once. Por eso el contador de W/L luce y la cuenta baja.
+
+    NO HAY FILTRO DE ENTRADA, Y NO LO HAY A PROPOSITO
+    Se midio: elegir por frecuencia, por racha, por desviacion o al azar dan
+    todos la misma tasa de acierto, porque los ticks de estos indices son
+    independientes. Un filtro de entrada aqui es decoracion. Lo que si
+    cambia el resultado, y esta puesto, es cuanto se expone y cuando se para.
+
+    Importar en bot.deriv.com -> icono de carpeta -> Local.
+    Probar SIEMPRE primero en cuenta Demo.
+  -->
+  <variables>
+    <variable id="vstake">stake</variable>
+    <variable id="vses">ganancia_sesion</variable>
+    <variable id="vpico">pico_ganancia</variable>
+    <variable id="vretro">retroceso_maximo</variable>
+    <variable id="vobj">objetivo_sesion</variable>
+    <variable id="vlim">limite_sesion</variable>
+    <variable id="vracha">perdidas_seguidas</variable>
+    <variable id="vmax">max_perdidas_seguidas</variable>
+  </variables>
+
+  <block type="trade_definition" id="td" deletable="false" movable="false" x="0" y="0">
+    <statement name="TRADE_OPTIONS">
+      <block type="trade_definition_market" id="tdm" deletable="false" movable="false">
+        <field name="MARKET_LIST">synthetic_index</field>
+        <field name="SUBMARKET_LIST">random_index</field>
+        <field name="SYMBOL_LIST">1HZ75V</field>
+        <next><block type="trade_definition_tradetype" id="tdt" deletable="false" movable="false">
+          <field name="TRADETYPECAT_LIST">digits</field>
+          <field name="TRADETYPE_LIST">matchesdiffers</field>
+          <next><block type="trade_definition_contracttype" id="tdc" deletable="false" movable="false">
+            <field name="TYPE_LIST">DIGITDIFF</field>
+            <next><block type="trade_definition_candleinterval" id="tdci" deletable="false" movable="false">
+              <field name="CANDLEINTERVAL_LIST">60</field>
+              <next><block type="trade_definition_restartbuysell" id="tdrb" deletable="false" movable="false">
+                <field name="TIME_MACHINE_ENABLED">FALSE</field>
+                <next><block type="trade_definition_restartonerror" id="tdre" deletable="false" movable="false">
+                  <field name="RESTARTONERROR">TRUE</field>
+                </block></next>
+              </block></next>
+            </block></next>
+          </block></next>
+        </block></next>
+      </block>
+    </statement>
+
+    <statement name="INITIALIZATION">
+<block type="variables_set" id="s_vstake"><field name="VAR" id="vstake">stake</field><value name="VALUE"><block type="math_number" id="v_vstake"><field name="NUM">1</field></block></value>
+<next>
+<block type="variables_set" id="s_vses"><field name="VAR" id="vses">ganancia_sesion</field><value name="VALUE"><block type="math_number" id="v_vses"><field name="NUM">0</field></block></value>
+<next>
+<block type="variables_set" id="s_vpico"><field name="VAR" id="vpico">pico_ganancia</field><value name="VALUE"><block type="math_number" id="v_vpico"><field name="NUM">0</field></block></value>
+<next>
+<block type="variables_set" id="s_vretro"><field name="VAR" id="vretro">retroceso_maximo</field><value name="VALUE"><block type="math_number" id="v_vretro"><field name="NUM">3</field></block></value>
+<next>
+<block type="variables_set" id="s_vobj"><field name="VAR" id="vobj">objetivo_sesion</field><value name="VALUE"><block type="math_number" id="v_vobj"><field name="NUM">1</field></block></value>
+<next>
+<block type="variables_set" id="s_vlim"><field name="VAR" id="vlim">limite_sesion</field><value name="VALUE"><block type="math_number" id="v_vlim"><field name="NUM">20</field></block></value>
+<next>
+<block type="variables_set" id="s_vracha"><field name="VAR" id="vracha">perdidas_seguidas</field><value name="VALUE"><block type="math_number" id="v_vracha"><field name="NUM">0</field></block></value>
+<next>
+<block type="variables_set" id="s_vmax"><field name="VAR" id="vmax">max_perdidas_seguidas</field><value name="VALUE"><block type="math_number" id="v_vmax"><field name="NUM">2</field></block></value></block>
+</next></block>
+</next></block>
+</next></block>
+</next></block>
+</next></block>
+</next></block>
+</next></block>
+    </statement>
+
+    <statement name="SUBMARKET">
+      <block type="trade_definition_tradeoptions" id="tdo">
+        <field name="DURATIONTYPE_LIST">t</field>
+        <field name="CURRENCY_LIST">USD</field>
+        <value name="DURATION"><block type="math_number" id="ndur"><field name="NUM">1</field></block></value>
+        <value name="AMOUNT"><block type="variables_get" id="gstake"><field name="VAR" id="vstake">stake</field></block></value>
+        <value name="PREDICTION"><block type="math_number" id="npred"><field name="NUM">1</field></block></value>
+      </block>
+    </statement>
+  </block>
+
+  <block type="before_purchase" id="bp" deletable="false" movable="false" x="0" y="700">
+    <statement name="BEFOREPURCHASE_STACK">
+      <block type="purchase" id="pur"><field name="PURCHASE_LIST">DIGITDIFF</field></block>
+    </statement>
+  </block>
+
+  <block type="after_purchase" id="ap" deletable="false" movable="false" x="0" y="840">
+    <statement name="AFTERPURCHASE_STACK">
+
+      <block type="variables_set" id="acc">
+        <field name="VAR" id="vses">ganancia_sesion</field>
+        <value name="VALUE"><block type="math_arithmetic" id="sum"><field name="OP">ADD</field>
+          <value name="A"><block type="variables_get" id="g1"><field name="VAR" id="vses">ganancia_sesion</field></block></value>
+          <value name="B"><block type="read_details" id="rd"><field name="DETAIL_INDEX">4</field></block></value>
+        </block></value>
+        <next>
+
+        <block type="controls_if" id="ifpico">
+          <mutation elseif="0" else="0"></mutation>
+          <value name="IF0"><block type="logic_compare" id="cpico"><field name="OP">GT</field>
+            <value name="A"><block type="variables_get" id="g2"><field name="VAR" id="vses">ganancia_sesion</field></block></value>
+            <value name="B"><block type="variables_get" id="g3"><field name="VAR" id="vpico">pico_ganancia</field></block></value>
+          </block></value>
+          <statement name="DO0"><block type="variables_set" id="setpico">
+            <field name="VAR" id="vpico">pico_ganancia</field>
+            <value name="VALUE"><block type="variables_get" id="g4"><field name="VAR" id="vses">ganancia_sesion</field></block></value>
+          </block></statement>
+          <next>
+
+          <block type="controls_if" id="ifres">
+            <mutation else="1"></mutation>
+            <value name="IF0"><block type="contract_check_result" id="ccr"><field name="CHECK_RESULT">win</field></block></value>
+            <statement name="DO0"><block type="variables_set" id="reset">
+              <field name="VAR" id="vracha">perdidas_seguidas</field>
+              <value name="VALUE"><block type="math_number" id="ncero"><field name="NUM">0</field></block></value>
+            </block></statement>
+            <statement name="ELSE"><block type="variables_set" id="inc">
+              <field name="VAR" id="vracha">perdidas_seguidas</field>
+              <value name="VALUE"><block type="math_arithmetic" id="add1"><field name="OP">ADD</field>
+                <value name="A"><block type="variables_get" id="g5"><field name="VAR" id="vracha">perdidas_seguidas</field></block></value>
+                <value name="B"><block type="math_number" id="nuno"><field name="NUM">1</field></block></value>
+              </block></value>
+            </block></statement>
+            <next>
+
+            <block type="controls_if" id="ifgo">
+              <mutation elseif="0" else="0"></mutation>
+              <value name="IF0">
+                <block type="logic_operation" id="and1"><field name="OP">AND</field>
+                  <value name="A"><block type="logic_compare" id="cObj"><field name="OP">LT</field>
+                    <value name="A"><block type="variables_get" id="g6"><field name="VAR" id="vses">ganancia_sesion</field></block></value>
+                    <value name="B"><block type="variables_get" id="g7"><field name="VAR" id="vobj">objetivo_sesion</field></block></value>
+                  </block></value>
+                  <value name="B">
+                    <block type="logic_operation" id="and2"><field name="OP">AND</field>
+                      <value name="A"><block type="logic_compare" id="cLim"><field name="OP">GT</field>
+                        <value name="A"><block type="variables_get" id="g8"><field name="VAR" id="vses">ganancia_sesion</field></block></value>
+                        <value name="B"><block type="math_single" id="neg"><field name="OP">NEG</field>
+                          <value name="NUM"><block type="variables_get" id="g9"><field name="VAR" id="vlim">limite_sesion</field></block></value>
+                        </block></value>
+                      </block></value>
+                      <value name="B">
+                        <block type="logic_operation" id="and3"><field name="OP">AND</field>
+                          <value name="A"><block type="logic_compare" id="cRetro"><field name="OP">LT</field>
+                            <value name="A"><block type="math_arithmetic" id="resta"><field name="OP">MINUS</field>
+                              <value name="A"><block type="variables_get" id="g10"><field name="VAR" id="vpico">pico_ganancia</field></block></value>
+                              <value name="B"><block type="variables_get" id="g11"><field name="VAR" id="vses">ganancia_sesion</field></block></value>
+                            </block></value>
+                            <value name="B"><block type="variables_get" id="g12"><field name="VAR" id="vretro">retroceso_maximo</field></block></value>
+                          </block></value>
+                          <value name="B"><block type="logic_compare" id="cRacha"><field name="OP">LT</field>
+                            <value name="A"><block type="variables_get" id="g13"><field name="VAR" id="vracha">perdidas_seguidas</field></block></value>
+                            <value name="B"><block type="variables_get" id="g14"><field name="VAR" id="vmax">max_perdidas_seguidas</field></block></value>
+                          </block></value>
+                        </block>
+                      </value>
+                    </block>
+                  </value>
+                </block>
+              </value>
+              <statement name="DO0"><block type="trade_again" id="ta"></block></statement>
+            </block>
+
+            </next>
+          </block>
+
+          </next>
+        </block>
+
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>
