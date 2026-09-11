@@ -74,8 +74,8 @@
 
   api.onStatus = function (s) {
     if (s === 'desconectado') {
-      setConn(s, 'Desconectado.');
-      $('accountBadge').textContent = 'sin conectar';
+      setConn(s, 'Sin iniciar.');
+      $('accountBadge').textContent = 'sin iniciar';
       $('accountBadge').className = 'badge';
       toggleConnected(false);
     }
@@ -145,6 +145,7 @@
         badge.className = 'badge demo';
         setConn('conectado', 'Demostracion local: ticks generados en este navegador, sin red.');
         toggleConnected(true);
+        var rc = $('realConn'); if (rc) rc.open = false;
         $('mode').value = 'sim';
         $('mode').dispatchEvent(new Event('change'));
         log('Modo demostracion. Los datos son simulados; ninguna orden sale de este equipo.');

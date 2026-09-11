@@ -17,7 +17,7 @@
       <p id="subtitle">Analisis de digitos en vivo + operacion automatica</p>
     </div>
   </div>
-  <span class="badge" id="accountBadge">sin conectar</span>
+  <span class="badge" id="accountBadge">sin iniciar</span>
 </header>
 
 <nav class="tabs" id="tabs">
@@ -36,29 +36,38 @@
 <section class="view active" id="view-panel">
 
   <div class="card" id="connCard">
-    <h2>1 · Conexion</h2>
-    <label>App ID
-      <input id="appId" type="text" inputmode="numeric" value="1089">
-      <small>1089 es el ID publico de pruebas. Registra el tuyo en api.deriv.com para uso continuo.</small>
-    </label>
-    <label>API Token
-      <input id="apiToken" type="password" placeholder="Token con permisos Read + Trade" autocomplete="off">
-      <small>Crealo en <b>app.deriv.com → Configuracion → API token</b>. Empieza con una cuenta <b>Demo</b>.</small>
-    </label>
-    <label class="check">
-      <input id="rememberToken" type="checkbox">
-      <span>Recordar el token en este dispositivo (se guarda en localStorage, sin cifrar)</span>
-    </label>
-    <div class="row">
-      <button class="btn primary" id="btnConnect">Conectar</button>
-      <button class="btn ghost" id="btnDisconnect" disabled>Desconectar</button>
-    </div>
-    <div class="row">
-      <button class="btn demo" id="btnDemo">Explorar sin cuenta</button>
-    </div>
-    <p class="note">«Explorar sin cuenta» genera los ticks en tu propio navegador, sin red
-      y sin dinero. Sirve para recorrer toda la herramienta antes de crear ningun token.</p>
-    <p class="status" id="connStatus">Desconectado.</p>
+    <h2>1 · Empieza aqui</h2>
+    <p class="lead">Esta herramienta analiza en vivo los digitos de los indices de Deriv y
+       puede operar sola. Para verla funcionar <b>no necesitas cuenta ni token</b>.</p>
+
+    <button class="btn big" id="btnDemo">Empezar ahora — sin cuenta</button>
+    <p class="note">Genera los datos en tu propio navegador: sin red, sin registro y sin
+       dinero. Funciona todo menos enviar ordenes reales. Es el punto de partida
+       recomendado.</p>
+
+    <details id="realConn">
+      <summary>Ya tengo cuenta de Deriv y quiero conectarla</summary>
+      <label>API Token
+        <input id="apiToken" type="password" placeholder="Token con permisos Read + Trade" autocomplete="off">
+        <small>Se crea en <b>app.deriv.com → Configuracion → API token</b>, marcando
+               <b>Read</b> y <b>Trade</b>. Empieza con una cuenta <b>Demo</b>.</small>
+      </label>
+      <label>App ID
+        <input id="appId" type="text" inputmode="numeric" value="1089">
+        <small>Dejalo en 1089 salvo que notes lentitud. Entonces registra el tuyo gratis
+               en api.deriv.com.</small>
+      </label>
+      <label class="check">
+        <input id="rememberToken" type="checkbox">
+        <span>Recordar el token en este dispositivo (se guarda sin cifrar)</span>
+      </label>
+      <div class="row">
+        <button class="btn primary" id="btnConnect">Conectar</button>
+        <button class="btn ghost" id="btnDisconnect" disabled>Desconectar</button>
+      </div>
+    </details>
+
+    <p class="status" id="connStatus">Sin iniciar.</p>
   </div>
 
   <div class="card">
@@ -267,7 +276,7 @@
         <input id="takeProfit" type="number" step="1" min="0" value="10">
       </label>
       <label>Perdida maxima (USD)
-        <input id="stopLoss" type="number" step="1" min="0" value="10">
+        <input id="stopLoss" type="number" step="1" min="0" value="20">
       </label>
       <label>Stake maximo (USD)
         <input id="maxStake" type="number" step="1" min="1" value="20">
@@ -276,7 +285,7 @@
         <input id="maxTrades" type="number" step="1" min="0" value="50">
       </label>
       <label>Perdidas seguidas maximas
-        <input id="maxLossStreak" type="number" step="1" min="0" value="8">
+        <input id="maxLossStreak" type="number" step="1" min="0" value="0">
       </label>
       <label>Pago minimo exigido
         <select id="minPayoutMult">
@@ -288,7 +297,7 @@
     </div>
 
     <label class="check gateswitch">
-      <input id="requireGate" type="checkbox" checked>
+      <input id="requireGate" type="checkbox">
       <span><b>Operar solo cuando la puerta diga ENTRAR.</b> El motor comprueba, antes de cada
             orden, que la tasa de acierto medida supere el punto de equilibrio del pago con la
             certeza exigida. Si no lo supera, no opera.</span>

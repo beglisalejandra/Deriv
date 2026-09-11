@@ -230,3 +230,10 @@ details ul.reasons{color:var(--ink)}
 .diag li{margin-bottom:.3rem}
 .diag li.block{color:#9a3412; font-weight:600}
 .diag li b{display:inline; font-size:inherit; color:inherit}
+
+/* ---------- primera pantalla: una sola accion obvia ---------- */
+.lead{font-size:.88rem; color:var(--ink); margin-bottom:1rem}
+.btn.big{width:100%; padding:1rem; font-size:1rem; background:var(--green); margin-bottom:.5rem}
+#connCard details{margin-top:1rem; border-top:1px solid var(--line); padding-top:.8rem}
+#connCard details summary{font-size:.8rem}
+#connCard details label{margin-top:.75rem}
