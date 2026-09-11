@@ -96,8 +96,69 @@
     $('btnRun').disabled = !on;
   }
 
+
+  /* Traduce los errores de la API a algo accionable. Nunca muestra el token,
+     solo su longitud, que es lo que suele delatar el problema. */
+  function diagnosticarError(e, token) {
+    var n = token ? token.length : 0;
+    var code = e.code || '';
+
+    if (/InvalidToken|AuthorizationRequired/i.test(code + ' ' + e.message)) {
+      var pistas = [];
+      if (n === 0) {
+        pistas.push('el campo esta vacio');
+      } else if (n < 10) {
+        pistas.push('lo pegado tiene ' + n + ' caracteres, demasiado corto: ' +
+                    'parece que se copio solo un trozo');
+      } else if (n > 30) {
+        pistas.push('lo pegado tiene ' + n + ' caracteres. Los tokens de Deriv son ' +
+                    'mucho mas cortos (alrededor de 15), asi que probablemente se ' +
+                    'copio texto de mas junto al token, o se copio otra cosa');
+      } else {
+        pistas.push('tiene ' + n + ' caracteres, que es una longitud plausible');
+      }
+      return 'Deriv rechaza el token (' + n + ' caracteres): ' + pistas[0] + '. ' +
+             'Vuelve a app.deriv.com, Ficha API, y usa el boton de copiar que hay ' +
+             'junto al token en la lista, sin seleccionarlo a mano.';
+    }
+    if (/InvalidAppID/i.test(code)) {
+      return 'El App ID no es valido. Vuelve a ponerlo en 1089.';
+    }
+    if (/RateLimit/i.test(code)) {
+      return 'Demasiadas peticiones con el App ID compartido 1089. Espera un minuto, ' +
+             'o registra tu propio App ID gratis en api.deriv.com.';
+    }
+    if (/WebSocket|conexion|Tiempo de espera/i.test(e.message)) {
+      return 'No se pudo abrir la conexion con Deriv. Revisa tu red; si estas en una ' +
+             'wifi con restricciones, prueba con datos moviles.';
+    }
+    return 'Error de Deriv [' + (code || 'sin codigo') + ']: ' + e.message;
+  }
+
+  /* Aviso antes de intentarlo, cuando lo pegado no tiene pinta de token. */
+  function revisarToken() {
+    var v = $('apiToken').value.replace(/\s+/g, '');
+    var aviso = $('tokenHint');
+    if (!aviso) return;
+    if (!v) { aviso.textContent = ''; aviso.className = 'note'; return; }
+    if (v.length > 30) {
+      aviso.textContent = 'Has pegado ' + v.length + ' caracteres. Los tokens de Deriv son ' +
+        'bastante mas cortos (alrededor de 15). Puede que se haya copiado texto de mas.';
+      aviso.className = 'honest';
+    } else if (v.length < 10) {
+      aviso.textContent = 'Solo hay ' + v.length + ' caracteres. Parece un token incompleto.';
+      aviso.className = 'honest';
+    } else {
+      aviso.textContent = v.length + ' caracteres. Longitud plausible.';
+      aviso.className = 'note';
+    }
+  }
+  $('apiToken').addEventListener('input', revisarToken);
+  $('apiToken').addEventListener('change', revisarToken);
+
   $('btnConnect').addEventListener('click', function () {
-    var token = $('apiToken').value.trim();
+    // Copiar y pegar arrastra a menudo espacios, tabuladores o saltos de linea.
+    var token = $('apiToken').value.replace(/\s+/g, '');
     var appId = $('appId').value.trim() || '1089';
     if (!token) { setConn('', 'Falta el API token.'); return; }
 
@@ -132,10 +193,12 @@
       })
       .then(function () { startTicks(); })
       .catch(function (e) {
-        setConn('', 'Error: ' + e.message);
-        log('Fallo de conexion: ' + e.message);
+        log('Fallo de conexion [' + (e.code || 'sin codigo') + ']: ' + e.message);
+        // Desconectar primero: su evento de cierre reescribe el estado, asi que
+        // el mensaje de diagnostico tiene que ponerse despues para sobrevivir.
         api.disconnect();
         toggleConnected(false);
+        setConn('', diagnosticarError(e, token));
       });
   });
 
