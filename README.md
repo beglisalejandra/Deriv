@@ -14,6 +14,7 @@ No hay que instalar nada, no hay build, no hay dependencias. Es HTML + JavaScrip
 | `index.html` + `css/` + `js/` | **La app.** Decisión de entrada + análisis en vivo + escáner de pagos + bot + rigor estadístico |
 | `bots/matches-stake-fijo.xml` | Bot para `bot.deriv.com` con stake constante y límites |
 | `bots/matches-martingala.xml` | Réplica del bot del video (martingala x2.2) |
+| `docs/checklist.md` | **Paso a paso de uso**, por fases, con criterios de parada |
 | `docs/backtest.js` | Simulación Monte Carlo que mide cuánto dura cada plan |
 | `docs/matematica.md` | Los números detrás de todo esto |
 
