@@ -788,6 +788,61 @@
 
 
 
+
+  /* --------------------- Memoria de la configuracion -------------------- */
+  /* La configuracion vive en el navegador, no en la cuenta de Deriv: cambiar
+     entre demo y real no la altera, y ahora tampoco la altera recargar.
+     El Modo se excluye a proposito: cada sesion empieza en Simulacion, para
+     que pasar a Real sea siempre un acto deliberado. */
+
+  var CAMPOS_GUARDADOS = [
+    'symbol','strategy','windowTicks','baseStake','duration','money','factor','maxSteps',
+    'takeProfit','stopLoss','maxStake','maxTrades','maxLossStreak','minPayoutMult',
+    'requireGate','gateThreshold','gateMinSample','scanStake','scanTarget',
+    'suBankroll','suStake'
+  ];
+
+  function guardarConfig() {
+    var out = {};
+    CAMPOS_GUARDADOS.forEach(function (id) {
+      var el = $(id);
+      if (!el) return;
+      out[id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+    try { localStorage.setItem('deriv_config', JSON.stringify(out)); } catch (e) {}
+  }
+
+  function cargarConfig() {
+    var raw;
+    try { raw = localStorage.getItem('deriv_config'); } catch (e) { return false; }
+    if (!raw) return false;
+    var cfg;
+    try { cfg = JSON.parse(raw); } catch (e) { return false; }
+    Object.keys(cfg).forEach(function (id) {
+      var el = $(id);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = !!cfg[id];
+      else el.value = cfg[id];
+    });
+    // Repintar lo que depende de esos valores.
+    $('money').dispatchEvent(new Event('change'));
+    return true;
+  }
+
+  function olvidarConfig() {
+    try { localStorage.removeItem('deriv_config'); } catch (e) {}
+  }
+
+  CAMPOS_GUARDADOS.forEach(function (id) {
+    var el = $(id);
+    if (el) { el.addEventListener('change', guardarConfig); el.addEventListener('input', guardarConfig); }
+  });
+
+  $('btnResetCfg').addEventListener('click', function () {
+    olvidarConfig();
+    location.reload();
+  });
+
   /* --------------------- Diagnostico: por que no opera ------------------ */
 
   /* Revisa, en tiempo real, todo lo que puede impedir que el bot opere y lo
@@ -889,6 +944,7 @@
       el.dispatchEvent(new Event('change'));
     });
     render();
+    guardarConfig();
     renderDiag();
     $('predCard').hidden = false;
     $('gateCard').hidden = false;
@@ -1042,6 +1098,9 @@
   renderEV();
   renderRisk();
   renderResults();
+  if (cargarConfig()) { applySymbol(); log('Configuracion anterior restaurada.'); }
+  $('mode').value = 'sim';
+  $('mode').dispatchEvent(new Event('change'));
   renderCalibration();
   renderSustain();
   renderDiag();
