@@ -59,7 +59,7 @@ Es la forma de recorrer la herramienta entera antes de crear ningún token.
 
 ### 3. Crear el API token
 
-En `app.deriv.com` → **Configuración** → **API token** → marcar **Read** y **Trade** → crear.
+En `app.deriv.com` → **Configuración** → **API token** → marcar solo **Operaciones** → crear.
 
 Empieza con una cuenta **Demo**. La app muestra un distintivo rojo `REAL` o azul `DEMO`
 arriba a la derecha para que nunca haya duda de dónde estás operando.

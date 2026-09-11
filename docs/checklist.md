@@ -25,8 +25,10 @@ Esta fase existe porque la app se probó completa en navegador contra una API
 simulada, pero el apretón de manos con los servidores de Deriv no se pudo probar
 sin una cuenta. Aquí se confirma en cinco minutos.
 
-- [ ] Crear token en `app.deriv.com` → Configuración → API token, con permisos
-      **Read** y **Trade**, sobre una cuenta **Demo**.
+- [ ] Crear token en `app.deriv.com` → Configuración → **Ficha API** → *Crear token*,
+      marcando **solo «Operaciones»**, sobre una cuenta **Demo**. No marques «Gestión de
+      cuentas» ni «Perspectivas de aplicación»: la herramienta no las necesita, y un token
+      con ellas hace mucho más daño si se filtra.
 - [ ] Conectar. Comprobar que el distintivo de arriba a la derecha dice
       **`DEMO · VRTC…`** en azul. Si dice `REAL` en rojo, desconectar y revisar
       qué cuenta se usó.
@@ -45,8 +47,8 @@ sin una cuenta. Aquí se confirma en cinco minutos.
 
 **Si algo falla aquí:** lo más probable es el `App ID`. El 1089 es público y
 compartido, con límites de peticiones comunes. Registra el tuyo en `api.deriv.com`
-(gratis) y ponlo en el campo App ID. El segundo sospechoso es el token sin permiso
-`Trade`.
+(gratis) y ponlo en el campo App ID. El segundo sospechoso es el token sin el permiso
+«Operaciones».
 
 ---
 
