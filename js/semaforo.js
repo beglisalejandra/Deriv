@@ -12,7 +12,8 @@
   var stats = new window.DigitStats(5000);
 
   var APP_ID = '1089';
-  var estado = { corriendo:false, sub:null, pipSize:2, pagoReal:null, ultimoAnalisis:null };
+  var estado = { corriendo:false, sub:null, pipSize:2, pagoReal:null,
+               ultimoAnalisis:null, mejorIndice:null, escanTimer:null };
 
   var COLORES = ['#dc2626','#ea580c','#d97706','#65a30d','#16a34a',
                  '#0d9488','#0284c7','#4f46e5','#9333ea','#db2777'];
@@ -123,6 +124,78 @@
     }).join('');
   }
 
+
+  /* ------------------ Escaner de pagos entre indices --------------------
+     La probabilidad de acertar no se puede mover. El pago si: varia segun
+     el indice. Entrar donde mejor pagan es el unico filtro de entrada que
+     cambia el resultado de verdad. -------------------------------------- */
+
+  var INDICES = ['1HZ10V','1HZ25V','1HZ50V','1HZ75V','1HZ100V','R_10','R_25','R_50','R_75','R_100'];
+  var NOMBRES = {'1HZ10V':'Vol 10 (1s)','1HZ25V':'Vol 25 (1s)','1HZ50V':'Vol 50 (1s)',
+                 '1HZ75V':'Vol 75 (1s)','1HZ100V':'Vol 100 (1s)','R_10':'Vol 10',
+                 'R_25':'Vol 25','R_50':'Vol 50','R_75':'Vol 75','R_100':'Vol 100'};
+
+  function escanearPagos() {
+    if (!estado.corriendo) return Promise.resolve(null);
+    var c = cfg();
+    var lleva = window.Ronda.CONTRATOS[c.tipo].barrera;
+    var out = [];
+    var i = 0;
+
+    function siguiente() {
+      if (i >= INDICES.length) return Promise.resolve(out);
+      var sym = INDICES[i++];
+      return api.proposal({
+        amount: c.stake, contract_type: c.tipo, currency: 'USD',
+        duration: 1, duration_unit: 't', symbol: sym,
+        barrier: lleva ? c.barrera : undefined
+      }).then(function (p) {
+        var mult = p.payout / p.ask_price;
+        out.push({ sym: sym, nombre: NOMBRES[sym], pago: mult,
+                   ve: window.Ronda.probDe(c.tipo, c.barrera) * mult - 1 });
+      }).catch(function () {})
+        .then(function () {
+          return new Promise(function (r) { setTimeout(r, 110); }).then(siguiente);
+        });
+    }
+    return siguiente();
+  }
+
+  function pintarEscaner(lista) {
+    var cont = $('escaner');
+    if (!cont) return;
+    if (!lista || !lista.length) {
+      cont.innerHTML = '<p class="note">Sin cotizaciones. Deriv no cotiza pagos sin cuenta, ' +
+        'asi que se usan los valores tipicos del contrato.</p>';
+      estado.mejorIndice = null;
+      return;
+    }
+    lista.sort(function (a, b) { return b.pago - a.pago; });
+    estado.mejorIndice = lista[0];
+
+    var actual = cfg().simbolo;
+    cont.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
+      '<th>Indice</th><th>Pago</th><th>Valor esperado</th></tr></thead><tbody>' +
+      lista.map(function (x, n) {
+        return '<tr class="' + (x.sym === actual ? 'actual' : n === 0 ? 'good' : '') + '">' +
+          '<td>' + x.nombre + (n === 0 ? ' ★' : '') + '</td>' +
+          '<td><b>x' + x.pago.toFixed(2) + '</b></td>' +
+          '<td class="' + (x.ve >= 0 ? 'pos' : 'neg') + '">' + (x.ve * 100).toFixed(1) + '%</td>' +
+          '</tr>';
+      }).join('') + '</tbody></table></div>';
+
+    if (lista[0].sym !== actual) {
+      var mio = lista.filter(function (x) { return x.sym === actual; })[0];
+      $('notaEscaner').innerHTML = 'Ahora mismo <b>' + lista[0].nombre + '</b> paga <b>x' +
+        lista[0].pago.toFixed(2) + '</b>' +
+        (mio ? ', frente a x' + mio.pago.toFixed(2) + ' del que tienes puesto' : '') +
+        '. Cambia el indice aqui y en el desplegable <b>Market</b> del bot.';
+    } else {
+      $('notaEscaner').innerHTML = 'Estas en el indice que mejor paga ahora mismo: <b>x' +
+        lista[0].pago.toFixed(2) + '</b>.';
+    }
+  }
+
   /* --------------------------- El semaforo ------------------------------ */
 
   function evaluarMomento() {
@@ -143,6 +216,7 @@
   function pintarSemaforo() {
     var t = $('tarjetaLuz');
     var a = estado.ultimoAnalisis;
+    var c = cfg();
     if (!a) return;
 
     $('exitoRonda').textContent = pct(a.probExito);
@@ -167,7 +241,21 @@
     var pMomento = m.gate.probProfitable;
     $('momento').textContent = pct(pMomento);
 
+    var mejor = estado.mejorIndice;
+    var enMejor = !mejor || mejor.sym === c.simbolo;
+    var pagoBajo = mejor && !enMejor && (mejor.pago - a.pago) > 0.15;
+
     var luz, texto, sub;
+    if (pagoBajo) {
+      luz = 'ambar';
+      texto = 'CAMBIA DE INDICE';
+      sub = mejor.nombre + ' paga x' + mejor.pago.toFixed(2) + ' frente a x' +
+            a.pago.toFixed(2) + ' aqui. Es la unica mejora real disponible.';
+      t.className = 'card luz ' + luz;
+      $('luzTexto').textContent = texto;
+      $('luzSub').textContent = sub;
+      return;
+    }
     if (a.probExito < 0.40) {
       luz = 'rojo';
       texto = 'NO ENTRAR';
@@ -268,6 +356,10 @@
         $('btnIniciar').disabled = false;
         $('subtitle').textContent = 'Observando ' + $('simbolo').selectedOptions[0].textContent;
         pedirPagoReal();
+        escanearPagos().then(pintarEscaner);
+        estado.escanTimer = setInterval(function () {
+          escanearPagos().then(pintarEscaner);
+        }, 45000);
       })
       .catch(function (e) {
         $('connDot').className = 'dot';
@@ -299,6 +391,7 @@
   }
 
   function detener() {
+    if (estado.escanTimer) { clearInterval(estado.escanTimer); estado.escanTimer = null; }
     if (estado.sub !== null) { api.forget(estado.sub); estado.sub = null; }
     api.disconnect();
     estado.corriendo = false;
