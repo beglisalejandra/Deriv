@@ -277,7 +277,24 @@
   /* Al volver de Deriv: mostrar las cuentas devueltas y dejar elegir. */
   function procesarRetornoOAuth() {
     var cuentas = window.DerivAPI.leerCuentasDeLaURL();
-    if (!cuentas.length) return false;
+
+    // Si Deriv devolvio algo que no son cuentas (un error, un codigo de otro
+    // flujo), hay que verlo en vez de ignorarlo: es el unico rastro de que
+    // fue mal.
+    if (!cuentas.length) {
+      var params = new URLSearchParams(location.search);
+      var claves = [];
+      params.forEach(function (v, k) {
+        claves.push(k + '=' + (/token|secret|code/i.test(k) ? '(oculto, ' + v.length + ' car.)' : v));
+      });
+      if (claves.length) {
+        $('rawError').textContent = 'Deriv devolvio esto, pero sin cuentas: ' + claves.join('  ');
+        $('rawError').hidden = false;
+        log('Retorno de Deriv sin cuentas: ' + claves.join(' '));
+        window.DerivAPI.limpiarURL();
+      }
+      return false;
+    }
 
     var appId = '';
     try { appId = localStorage.getItem('deriv_oauth_appid') || ''; } catch (e) {}
