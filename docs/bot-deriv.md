@@ -50,10 +50,14 @@ Pulsa **Run** y el bot empieza.
 
 ## 3. La vía completa: importar un bot
 
-En el repo hay dos bots listos:
+En el repo hay tres bots listos:
 
-- **`bots/matches-stake-fijo.xml`** — stake constante de 1 USD, con objetivo de ganancia
-  y límite de pérdida. Es el recomendado.
+- **`bots/differs-3-perdidas.xml`** — Differs con parada automatica a las 3 perdidas
+  seguidas. Es el que cumple el requisito de no encadenar mas de tres fallos.
+
+
+- **`bots/matches-stake-fijo.xml`** — Matches con stake constante de 1 USD.
+  Pago alto, pero encadena tres perdidas cada cuatro operaciones.
 - **`bots/matches-martingala.xml`** — la réplica exacta del video, martingala x2.2 con
   tope de 5 pasos.
 
@@ -115,3 +119,25 @@ calculadoras de riesgo, mientras el bot opera.
   tiene un valor esperado de **−10.71%** del stake. El bot ejecuta bien; lo que no puede
   hacer es cambiar esa cifra.
 - El `Loss threshold` es el único control que de verdad te protege. Ponlo siempre.
+
+
+---
+
+## Cuantas perdidas seguidas esperar segun el contrato
+
+La probabilidad de encadenar tres fallos depende solo del contrato elegido, no de
+cuanto se analice antes de entrar, porque cada tick es independiente del anterior.
+
+| Contrato | Gana | P(3 seguidas) | Ocurre cada | Pago |
+|---|---|---|---|---|
+| Matches | 10% | **72.90%** | 4 operaciones | x8.93 |
+| Over 7 | 20% | 51.20% | 5 operaciones | x4.46 |
+| Par / Impar | 50% | 12.50% | 14 operaciones | x1.95 |
+| **Differs** | 90% | **0.10%** | **1 110 operaciones** | x1.09 |
+
+Con Differs, a unos dos segundos por operacion, una racha de tres aparece cada
+**37 minutos** de funcionamiento continuo. Con Matches, cada siete segundos.
+
+El precio de esa estabilidad es el pago: cada acierto suma 0.09 y cada fallo resta
+1.00, asi que hacen falta doce aciertos para cubrir un fallo. El valor esperado pasa
+de -10.7% por operacion a **-1.9%**. Pierde cinco veces mas despacio; no gana.

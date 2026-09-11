@@ -1,0 +1,233 @@
+<xml xmlns="https://developers.google.com/blockly/xml" is_dbot="true" collection="false">
+  <!--
+    Differs con cortacircuitos de 3 perdidas — Volatility 75 (1s) Index
+
+    OBJETIVO: no encadenar mas de 3 operaciones perdedoras, sin quedarse
+    parado esperando entre operaciones.
+
+    COMO LO CONSIGUE, que no es analizando:
+    Differs gana cuando el ultimo digito NO coincide con el elegido, asi que
+    acierta 9 de cada 10 veces. Tres perdidas seguidas tienen probabilidad
+    0.1 x 0.1 x 0.1 = 0.001, una de cada mil. A dos segundos por operacion,
+    eso es una racha cada 37 minutos de funcionamiento continuo.
+    Con Matches, que acierta 1 de cada 10, tres perdidas seguidas ocurren el
+    72.9% de las veces: una cada cuatro operaciones. Por eso se cambia el
+    contrato en lugar de anadir filtros.
+
+    Y ademas hay una garantia dura: el bot CUENTA las perdidas consecutivas y
+    se detiene al llegar a 3. No es una probabilidad, es una parada.
+
+    EL DIGITO ELEGIDO DA IGUAL. Los diez digitos salen con la misma
+    frecuencia, asi que Differs gana 90% con cualquiera. No hay nada que
+    analizar ahi, y cualquier bot que diga lo contrario esta adornando.
+
+    LO QUE NO CAMBIA: el pago es x1.09, asi que cada acierto suma 0.09 y cada
+    fallo resta 1.00. Hacen falta doce aciertos para cubrir un fallo. El valor
+    esperado sigue siendo negativo, -1.9% por operacion, frente al -10.7% de
+    Matches. Pierde cinco veces mas despacio, no gana.
+
+    Importar en bot.deriv.com -> icono de carpeta -> Local.
+    Probar SIEMPRE primero en cuenta Demo.
+  -->
+  <variables>
+    <variable id="v_stake">stake</variable>
+    <variable id="v_pred">digito_a_evitar</variable>
+    <variable id="v_pnl">ganancia_acumulada</variable>
+    <variable id="v_tp">objetivo_ganancia</variable>
+    <variable id="v_sl">limite_perdida</variable>
+    <variable id="v_racha">perdidas_seguidas</variable>
+    <variable id="v_maxracha">max_perdidas_seguidas</variable>
+  </variables>
+
+  <block type="trade_definition" id="td" deletable="false" movable="false" x="0" y="0">
+    <statement name="TRADE_OPTIONS">
+      <block type="trade_definition_market" id="tdm" deletable="false" movable="false">
+        <field name="MARKET_LIST">synthetic_index</field>
+        <field name="SUBMARKET_LIST">random_index</field>
+        <field name="SYMBOL_LIST">1HZ75V</field>
+        <next>
+          <block type="trade_definition_tradetype" id="tdt" deletable="false" movable="false">
+            <field name="TRADETYPECAT_LIST">digits</field>
+            <field name="TRADETYPE_LIST">matchesdiffers</field>
+            <next>
+              <block type="trade_definition_contracttype" id="tdc" deletable="false" movable="false">
+                <field name="TYPE_LIST">DIGITDIFF</field>
+                <next>
+                  <block type="trade_definition_candleinterval" id="tdci" deletable="false" movable="false">
+                    <field name="CANDLEINTERVAL_LIST">60</field>
+                    <next>
+                      <block type="trade_definition_restartbuysell" id="tdrb" deletable="false" movable="false">
+                        <field name="TIME_MACHINE_ENABLED">FALSE</field>
+                        <next>
+                          <block type="trade_definition_restartonerror" id="tdre" deletable="false" movable="false">
+                            <field name="RESTARTONERROR">TRUE</field>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+
+    <statement name="INITIALIZATION">
+      <block type="variables_set" id="i1">
+        <field name="VAR" id="v_stake">stake</field>
+        <value name="VALUE"><block type="math_number" id="n1"><field name="NUM">1</field></block></value>
+        <next>
+          <block type="variables_set" id="i2">
+            <field name="VAR" id="v_pred">digito_a_evitar</field>
+            <value name="VALUE"><block type="math_number" id="n2"><field name="NUM">5</field></block></value>
+            <next>
+              <block type="variables_set" id="i3">
+                <field name="VAR" id="v_pnl">ganancia_acumulada</field>
+                <value name="VALUE"><block type="math_number" id="n3"><field name="NUM">0</field></block></value>
+                <next>
+                  <block type="variables_set" id="i4">
+                    <field name="VAR" id="v_tp">objetivo_ganancia</field>
+                    <value name="VALUE"><block type="math_number" id="n4"><field name="NUM">5</field></block></value>
+                    <next>
+                      <block type="variables_set" id="i5">
+                        <field name="VAR" id="v_sl">limite_perdida</field>
+                        <value name="VALUE"><block type="math_number" id="n5"><field name="NUM">10</field></block></value>
+                        <next>
+                          <block type="variables_set" id="i6">
+                            <field name="VAR" id="v_racha">perdidas_seguidas</field>
+                            <value name="VALUE"><block type="math_number" id="n6"><field name="NUM">0</field></block></value>
+                            <next>
+                              <block type="variables_set" id="i7">
+                                <field name="VAR" id="v_maxracha">max_perdidas_seguidas</field>
+                                <value name="VALUE"><block type="math_number" id="n7"><field name="NUM">3</field></block></value>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+
+    <statement name="SUBMARKET">
+      <block type="trade_definition_tradeoptions" id="tdo">
+        <field name="DURATIONTYPE_LIST">t</field>
+        <field name="CURRENCY_LIST">USD</field>
+        <value name="DURATION"><block type="math_number" id="n8"><field name="NUM">1</field></block></value>
+        <value name="AMOUNT">
+          <block type="variables_get" id="g1"><field name="VAR" id="v_stake">stake</field></block>
+        </value>
+        <value name="PREDICTION">
+          <block type="variables_get" id="g2"><field name="VAR" id="v_pred">digito_a_evitar</field></block>
+        </value>
+      </block>
+    </statement>
+  </block>
+
+  <block type="before_purchase" id="bp" deletable="false" movable="false" x="0" y="560">
+    <statement name="BEFOREPURCHASE_STACK">
+      <block type="purchase" id="pur">
+        <field name="PURCHASE_LIST">DIGITDIFF</field>
+      </block>
+    </statement>
+  </block>
+
+  <block type="after_purchase" id="ap" deletable="false" movable="false" x="0" y="700">
+    <statement name="AFTERPURCHASE_STACK">
+
+      <!-- 1. Acumular el resultado de la operacion -->
+      <block type="variables_set" id="acc">
+        <field name="VAR" id="v_pnl">ganancia_acumulada</field>
+        <value name="VALUE">
+          <block type="math_arithmetic" id="sum">
+            <field name="OP">ADD</field>
+            <value name="A"><block type="variables_get" id="g3"><field name="VAR" id="v_pnl">ganancia_acumulada</field></block></value>
+            <value name="B"><block type="read_details" id="rd"><field name="DETAIL_INDEX">4</field></block></value>
+          </block>
+        </value>
+
+        <next>
+          <!-- 2. Contar perdidas consecutivas -->
+          <block type="controls_if" id="ifres">
+            <mutation else="1"></mutation>
+            <value name="IF0">
+              <block type="contract_check_result" id="ccr"><field name="CHECK_RESULT">win</field></block>
+            </value>
+            <statement name="DO0">
+              <block type="variables_set" id="reset">
+                <field name="VAR" id="v_racha">perdidas_seguidas</field>
+                <value name="VALUE"><block type="math_number" id="n9"><field name="NUM">0</field></block></value>
+              </block>
+            </statement>
+            <statement name="ELSE">
+              <block type="variables_set" id="inc">
+                <field name="VAR" id="v_racha">perdidas_seguidas</field>
+                <value name="VALUE">
+                  <block type="math_arithmetic" id="add1">
+                    <field name="OP">ADD</field>
+                    <value name="A"><block type="variables_get" id="g4"><field name="VAR" id="v_racha">perdidas_seguidas</field></block></value>
+                    <value name="B"><block type="math_number" id="n10"><field name="NUM">1</field></block></value>
+                  </block>
+                </value>
+              </block>
+            </statement>
+
+            <next>
+              <!-- 3. Seguir solo si no se alcanzo la racha ni los limites -->
+              <block type="controls_if" id="ifgo">
+                <mutation elseif="0" else="0"></mutation>
+                <value name="IF0">
+                  <block type="logic_operation" id="and1">
+                    <field name="OP">AND</field>
+                    <value name="A">
+                      <block type="logic_compare" id="cRacha">
+                        <field name="OP">LT</field>
+                        <value name="A"><block type="variables_get" id="g5"><field name="VAR" id="v_racha">perdidas_seguidas</field></block></value>
+                        <value name="B"><block type="variables_get" id="g6"><field name="VAR" id="v_maxracha">max_perdidas_seguidas</field></block></value>
+                      </block>
+                    </value>
+                    <value name="B">
+                      <block type="logic_operation" id="and2">
+                        <field name="OP">AND</field>
+                        <value name="A">
+                          <block type="logic_compare" id="cTp">
+                            <field name="OP">LT</field>
+                            <value name="A"><block type="variables_get" id="g7"><field name="VAR" id="v_pnl">ganancia_acumulada</field></block></value>
+                            <value name="B"><block type="variables_get" id="g8"><field name="VAR" id="v_tp">objetivo_ganancia</field></block></value>
+                          </block>
+                        </value>
+                        <value name="B">
+                          <block type="logic_compare" id="cSl">
+                            <field name="OP">GT</field>
+                            <value name="A"><block type="variables_get" id="g9"><field name="VAR" id="v_pnl">ganancia_acumulada</field></block></value>
+                            <value name="B">
+                              <block type="math_single" id="neg">
+                                <field name="OP">NEG</field>
+                                <value name="NUM"><block type="variables_get" id="g10"><field name="VAR" id="v_sl">limite_perdida</field></block></value>
+                              </block>
+                            </value>
+                          </block>
+                        </value>
+                      </block>
+                    </value>
+                  </block>
+                </value>
+                <statement name="DO0">
+                  <block type="trade_again" id="ta"></block>
+                </statement>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>
