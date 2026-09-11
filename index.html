@@ -48,11 +48,13 @@
     <details id="realConn">
       <summary>Ya tengo cuenta de Deriv y quiero conectarla</summary>
       <label>API Token
-        <input id="apiToken" type="password" placeholder="Token con permiso de Operaciones" autocomplete="off">
+        <input id="apiToken" type="password" placeholder="pat_…" autocomplete="off">
         <small>Se crea en <b>app.deriv.com → Configuracion → Ficha API → Crear token</b>.
                Marca <b>solo «Operaciones»</b>; no marques «Gestion de cuentas» ni
                «Perspectivas de aplicacion». Empieza con una cuenta <b>Demo</b>.
-               Copialo con el boton de copiar de la lista, no seleccionandolo a mano.</small>
+               <b>Importante:</b> Deriv solo muestra el token entero una vez, en la ventana
+               que sale justo al crearlo. Copialo ahi con el boton «Copiar»; despues aparece
+               oculto y ya no se puede recuperar.</small>
       </label>
       <p class="note" id="tokenHint"></p>
       <label>App ID

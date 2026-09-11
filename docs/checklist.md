@@ -29,6 +29,10 @@ sin una cuenta. Aquí se confirma en cinco minutos.
       marcando **solo «Operaciones»**, sobre una cuenta **Demo**. No marques «Gestión de
       cuentas» ni «Perspectivas de aplicación»: la herramienta no las necesita, y un token
       con ellas hace mucho más daño si se filtra.
+- [ ] **Copiarlo en la ventana que aparece al crearlo.** Deriv muestra el token entero
+      una sola vez; después solo se ve enmascarado (`************6868`) y no hay forma de
+      recuperarlo. Si se pierde, hay que borrarlo y crear otro.
+      Formato actual: `pat_` seguido de 64 caracteres, 68 en total.
 - [ ] Conectar. Comprobar que el distintivo de arriba a la derecha dice
       **`DEMO · VRTC…`** en azul. Si dice `REAL` en rojo, desconectar y revisar
       qué cuenta se usó.

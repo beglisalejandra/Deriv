@@ -104,22 +104,19 @@
     var code = e.code || '';
 
     if (/InvalidToken|AuthorizationRequired/i.test(code + ' ' + e.message)) {
-      var pistas = [];
-      if (n === 0) {
-        pistas.push('el campo esta vacio');
-      } else if (n < 10) {
-        pistas.push('lo pegado tiene ' + n + ' caracteres, demasiado corto: ' +
-                    'parece que se copio solo un trozo');
-      } else if (n > 30) {
-        pistas.push('lo pegado tiene ' + n + ' caracteres. Los tokens de Deriv son ' +
-                    'mucho mas cortos (alrededor de 15), asi que probablemente se ' +
-                    'copio texto de mas junto al token, o se copio otra cosa');
-      } else {
-        pistas.push('tiene ' + n + ' caracteres, que es una longitud plausible');
+      var f = formatoToken(token);
+      if (f.tipo === 'pat_incompleto') {
+        return 'Deriv rechaza el token, y se ve por que: empieza por pat_ pero tiene ' +
+               n + ' caracteres en lugar de 68. La copia quedo cortada.';
       }
-      return 'Deriv rechaza el token (' + n + ' caracteres): ' + pistas[0] + '. ' +
-             'Vuelve a app.deriv.com, Ficha API, y usa el boton de copiar que hay ' +
-             'junto al token en la lista, sin seleccionarlo a mano.';
+      if (f.tipo === 'desconocido') {
+        return 'Deriv rechaza lo pegado (' + n + ' caracteres) y no tiene formato de token: ' +
+               'los actuales empiezan por pat_ y siguen con 64 caracteres.';
+      }
+      return 'Deriv rechaza el token aunque el formato es correcto. Lo mas probable es que ' +
+             'haya caducado, se haya borrado, o pertenezca a otra cuenta. Crea uno nuevo en ' +
+             'app.deriv.com, Ficha API, marcando solo «Operaciones», y copialo en la ventana ' +
+             'que aparece justo al crearlo: despues Deriv ya no lo muestra.';
     }
     if (/InvalidAppID/i.test(code)) {
       return 'El App ID no es valido. Vuelve a ponerlo en 1089.';
@@ -135,22 +132,37 @@
     return 'Error de Deriv [' + (code || 'sin codigo') + ']: ' + e.message;
   }
 
-  /* Aviso antes de intentarlo, cuando lo pegado no tiene pinta de token. */
+  /* Aviso antes de intentarlo. Deriv usa hoy tokens con prefijo "pat_" y 64
+     caracteres detras (68 en total); los antiguos eran de unos 15. Se aceptan
+     los dos y solo se avisa de lo que es claramente incorrecto. */
+  function formatoToken(v) {
+    if (/^pat_[a-f0-9]{64}$/i.test(v)) return { ok: true, tipo: 'actual' };
+    if (/^pat_/i.test(v)) return { ok: false, tipo: 'pat_incompleto' };
+    if (/^[a-z0-9]{15}$/i.test(v)) return { ok: true, tipo: 'antiguo' };
+    return { ok: false, tipo: 'desconocido' };
+  }
+
   function revisarToken() {
     var v = $('apiToken').value.replace(/\s+/g, '');
     var aviso = $('tokenHint');
     if (!aviso) return;
     if (!v) { aviso.textContent = ''; aviso.className = 'note'; return; }
-    if (v.length > 30) {
-      aviso.textContent = 'Has pegado ' + v.length + ' caracteres. Los tokens de Deriv son ' +
-        'bastante mas cortos (alrededor de 15). Puede que se haya copiado texto de mas.';
-      aviso.className = 'honest';
-    } else if (v.length < 10) {
-      aviso.textContent = 'Solo hay ' + v.length + ' caracteres. Parece un token incompleto.';
+
+    var f = formatoToken(v);
+    if (f.tipo === 'actual') {
+      aviso.textContent = 'Formato correcto (pat_ + 64 caracteres).';
+      aviso.className = 'note';
+    } else if (f.tipo === 'antiguo') {
+      aviso.textContent = 'Formato antiguo de 15 caracteres. Deberia servir igual.';
+      aviso.className = 'note';
+    } else if (f.tipo === 'pat_incompleto') {
+      aviso.textContent = 'Empieza por pat_ pero tiene ' + v.length + ' caracteres en vez de 68. ' +
+                          'Parece que la copia quedo cortada: vuelve a copiarlo entero.';
       aviso.className = 'honest';
     } else {
-      aviso.textContent = v.length + ' caracteres. Longitud plausible.';
-      aviso.className = 'note';
+      aviso.textContent = v.length + ' caracteres, sin el prefijo pat_. Comprueba que has ' +
+                          'copiado el token y no otro texto de la pantalla.';
+      aviso.className = 'honest';
     }
   }
   $('apiToken').addEventListener('input', revisarToken);
