@@ -328,6 +328,9 @@
     return winProb * payoutMult - 1;
   };
 
+  // Utilidades numericas reutilizadas por edge.js
+  global.MathUtil = { gammaln: gammaln, chiSquareP: chiSquareP, wilson: wilson };
+
   global.DigitStats = DigitStats;
   global.DigitStats.STRATEGIES = STRATEGIES;
   global.DigitStats.theoreticalWinProb = theoreticalWinProb;

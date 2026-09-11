@@ -11,7 +11,7 @@ No hay que instalar nada, no hay build, no hay dependencias. Es HTML + JavaScrip
 
 | Archivo | Qué es |
 |---|---|
-| `index.html` + `css/` + `js/` | **La app.** Análisis en vivo + escáner de pagos + bot automático + resultados |
+| `index.html` + `css/` + `js/` | **La app.** Decisión de entrada + análisis en vivo + escáner de pagos + bot + rigor estadístico |
 | `bots/matches-stake-fijo.xml` | Bot para `bot.deriv.com` con stake constante y límites |
 | `bots/matches-martingala.xml` | Réplica del bot del video (martingala x2.2) |
 | `docs/backtest.js` | Simulación Monte Carlo que mide cuánto dura cada plan |
@@ -48,12 +48,17 @@ arriba a la derecha para que nunca haya duda de dónde estás operando.
 
 ### 3. Operar
 
-1. **Panel** → pegar el token → *Conectar*. Elegir índice y estrategia → *Iniciar análisis*.
+1. **Panel** → pegar el token → *Conectar*. Elegir índice y estrategia → *Iniciar análisis* → *Predecir*.
+   Aparece la **decisión de entrada**: `ENTRAR` o `NO ENTRAR`, con el porcentaje de
+   probabilidad de que esa entrada concreta sea rentable.
 2. **Pagos** → *Escanear pagos*. Cotiza en vivo las ~21 combinaciones de contrato y te dice
    cuáles pagan **x7, x9 o más** con stake de 1, 3 o 5 USD. Esta pestaña responde
    directamente a lo que pediste.
-3. **Bot** → elegir modo, stake y límites → *Ejecutar*.
-4. **Resultados** → P/L, tasa de acierto, caída máxima, exportar CSV.
+3. **Bot** → elegir modo, stake y límites → *Ejecutar*. La casilla **«operar solo cuando la
+   puerta diga ENTRAR»** viene activada: el motor no envía ninguna orden si la entrada no
+   supera el punto de equilibrio con la certeza exigida.
+4. **Rigor** → detección de sesgo por dígito y tabla de calibración.
+5. **Resultados** → P/L, tasa de acierto, caída máxima, exportar CSV.
 
 ---
 
@@ -139,6 +144,96 @@ node docs/backtest.js
   máximo, operaciones máximas, racha perdedora máxima y pago mínimo exigido. El motor
   los comprueba antes de cada operación, no después.
 - **Exportación CSV** de todas las operaciones.
+
+---
+
+## La decisión de entrada
+
+Pediste que la herramienta indique el porcentaje de probabilidad de éxito al momento de
+entrar. Eso está construido, pero la cifra útil no es "probabilidad de acertar" — es esta:
+
+> **P( tasa de acierto real > tasa de equilibrio | los datos observados )**
+
+Porque acertar no basta: hay que acertar **por encima del punto donde el pago cubre la
+comisión**. Ese punto es `1 / multiplicador de pago`:
+
+| Contrato | Pago | Hay que acertar | El RNG da | Diferencia |
+|---|---|---|---|---|
+| Matches | x8.93 | **11.20%** | 10.00% | −1.20 pp |
+| Over 8 | x8.93 | **11.20%** | 10.00% | −1.20 pp |
+| Par / Impar | x1.95 | **51.28%** | 50.00% | −1.28 pp |
+| Differs | x1.09 | **91.74%** | 90.00% | −1.74 pp |
+
+La app calcula la posterior bayesiana de la tasa real con un **prior de Jeffreys
+Beta(0,5, 0,5)** — deliberadamente débil, para que manden los datos y no la suposición
+previa — y de ahí sale el porcentaje que ves en la barra.
+
+### La puerta
+
+La casilla del bot hace cumplir la decisión: **no se envía ninguna orden mientras la
+probabilidad de rentabilidad no supere el umbral** (95% por defecto) con muestra
+suficiente (500 ticks por defecto).
+
+Esto es lo que pediste como "garantizar un margen de efectividad": está implementado como
+una condición que se verifica antes de cada orden, no como una promesa.
+
+### La puerta no es un "no" fijo
+
+`docs/backtest.js` la somete a prueba contra dos fuentes — una uniforme y otra con un
+sesgo real inyectado del 8% — 300 sesiones de 300 operaciones cada una:
+
+```
+escenario                            operadas  bloqueadas   acierto   P/L medio
+------------------------------------------------------------------------------
+RNG justo, SIN puerta                   300.0         0.0    10.00%      -32.04
+RNG justo, CON puerta                     2.4       297.6     8.67%       -0.55
+Sesgo real 8%, SIN puerta               300.0         0.0    14.76%       95.35
+Sesgo real 8%, CON puerta               218.3        81.7    17.12%      115.52
+```
+
+Sobre un generador uniforme bloquea el 99% de las entradas y la pérdida media pasa de
+−32.04 a −0.55. Sobre una fuente con ventaja real **deja operar, y además mejora el
+resultado** (+115.52 frente a +95.35), porque también descarta las entradas flojas dentro
+del flujo sesgado.
+
+Es un detector que responde a la evidencia. Si el mercado cambiara y apareciera una
+ventaja explotable, la puerta se abriría sola.
+
+---
+
+## Sobre "rentable y sostenible"
+
+Hay que separar las dos palabras, porque una es alcanzable y la otra no.
+
+**Rentable — no es posible en estos contratos.** No por falta de técnica: por aritmética.
+El valor esperado es `p × pago − 1`. Deriv fija el pago por debajo de `1/p` en todas las
+combinaciones, así que el producto es menor que 1 en todas. Ninguna elección de dígito,
+ventana, horario o gestión de capital mueve `p`, porque los ticks son independientes. La
+martingala tampoco: cambia la *forma* de la pérdida, no su valor esperado.
+
+La pestaña **Rigor** te deja comprobarlo tú, no creerme a mí: prueba cada dígito contra el
+10% teórico y corrige por las diez comparaciones simultáneas. Sin esa corrección, mirar
+diez dígitos y quedarse con el más extremo produce un "hallazgo" casi siempre — es
+exactamente el mecanismo que genera el "78% de confianza" del video.
+
+**Sostenible — esto sí es controlable, y mucho.** La pestaña *Realidad* mide cuánto dura
+el capital según el contrato:
+
+| Contrato | Pago | VE | Vida media (100 USD, stake 1) | Ruina |
+|---|---|---|---|---|
+| Matches / Over 8 | x8.93 | −10.71% | 933 operaciones | 99.7% |
+| Par / Impar | x1.95 | −2.50% | 4 000 operaciones | 75.8% |
+| Differs / Under 9 | x1.09 | −1.90% | 5 263 operaciones | 47.4% |
+
+Elegir el contrato de menor comisión multiplica por **5,6** la duración de la sesión. Eso
+es real y está medido. Pero alarga la sesión, no la vuelve positiva.
+
+**Si el objetivo es rentabilidad sostenida, el producto equivocado es el de dígitos**, no
+la configuración. Las opciones binarias de cuota fija tienen la comisión incorporada en el
+pago. Instrumentos donde el resultado no está fijado de antemano (los CFD de Deriv sobre
+divisas o materias primas, por ejemplo) no tienen esa garantía estructural en contra — lo
+que tampoco los hace fáciles ni convierte a nadie en rentable por defecto; solo significa
+que ahí el problema es de habilidad y no de aritmética cerrada.
 
 ---
 

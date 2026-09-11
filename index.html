@@ -24,6 +24,7 @@
   <button class="tab active" data-tab="panel">Panel</button>
   <button class="tab" data-tab="pagos">Pagos</button>
   <button class="tab" data-tab="bot">Bot</button>
+  <button class="tab" data-tab="rigor">Rigor</button>
   <button class="tab" data-tab="resultados">Resultados</button>
   <button class="tab" data-tab="realidad">Realidad</button>
 </nav>
@@ -117,6 +118,53 @@
     </div>
     <p class="reason" id="predReason"></p>
     <p class="honest" id="predHonest"></p>
+  </div>
+
+  <div class="card gate" id="gateCard" hidden>
+    <h2>3 · Decision de entrada</h2>
+    <div class="verdict" id="verdict">
+      <span class="light" id="verdictLight"></span>
+      <div>
+        <b id="verdictText">—</b>
+        <span id="verdictSub"></span>
+      </div>
+    </div>
+
+    <div class="gauge">
+      <div class="gauge-row">
+        <span class="k">Probabilidad de que esta entrada sea rentable</span>
+        <b class="big" id="gateProb">—</b>
+      </div>
+      <div class="meter"><div id="gateMeter"></div><span class="thr" id="gateThr"></span></div>
+      <small id="gateMeterNote">Exigencia minima marcada en la barra.</small>
+    </div>
+
+    <div class="stats-grid">
+      <div><span class="k">Necesario para no perder</span><b id="gateBreakeven">—</b></div>
+      <div><span class="k">Tasa medida</span><b id="gateMeasured">—</b></div>
+      <div><span class="k">Muestra</span><b id="gateSample">—</b></div>
+      <div><span class="k">Valor esperado</span><b id="gateEv">—</b></div>
+    </div>
+
+    <ul class="reasons" id="gateReasons"></ul>
+
+    <div class="grid2">
+      <label>Certeza exigida
+        <select id="gateThreshold">
+          <option value="0.90">90%</option>
+          <option value="0.95" selected>95%</option>
+          <option value="0.99">99%</option>
+        </select>
+      </label>
+      <label>Muestra minima
+        <select id="gateMinSample">
+          <option value="200">200 ticks</option>
+          <option value="500" selected>500 ticks</option>
+          <option value="1000">1000 ticks</option>
+          <option value="2000">2000 ticks</option>
+        </select>
+      </label>
+    </div>
   </div>
 </section>
 
@@ -233,6 +281,13 @@
       </label>
     </div>
 
+    <label class="check gateswitch">
+      <input id="requireGate" type="checkbox" checked>
+      <span><b>Operar solo cuando la puerta diga ENTRAR.</b> El motor comprueba, antes de cada
+            orden, que la tasa de acierto medida supere el punto de equilibrio del pago con la
+            certeza exigida. Si no lo supera, no opera.</span>
+    </label>
+
     <label class="check danger" id="realConfirmWrap" hidden>
       <input id="realConfirm" type="checkbox">
       <span>Entiendo que el modo real usa dinero de mi cuenta y que cada operacion tiene
@@ -249,6 +304,42 @@
   <div class="card">
     <h2>Registro</h2>
     <div class="log" id="log"></div>
+  </div>
+</section>
+
+<!-- ================== RIGOR ================== -->
+<section class="view" id="view-rigor">
+  <div class="card">
+    <h2>Deteccion de sesgo</h2>
+    <p class="note">Prueba cada digito por separado contra el 10% teorico y corrige por las
+      diez comparaciones simultaneas (Holm-Bonferroni). Sin esa correccion, mirar diez
+      digitos y quedarse con el mas extremo produce un "hallazgo" casi siempre.</p>
+    <div class="table-wrap">
+      <table id="biasTable">
+        <thead><tr>
+          <th>Digito</th><th>Veces</th><th>Frecuencia</th><th>p crudo</th><th>p corregido</th><th></th>
+        </tr></thead>
+        <tbody><tr><td colspan="6" class="empty">Inicia el analisis para acumular datos.</td></tr></tbody>
+      </table>
+    </div>
+    <p class="honest" id="biasVerdict">Sin datos suficientes.</p>
+  </div>
+
+  <div class="card">
+    <h2>Calibracion</h2>
+    <p class="note">Compara la probabilidad que anuncia la herramienta con la que realmente
+      se cumple. Una herramienta honesta cae sobre la diagonal: si dice 20%, acierta 20%.
+      Se acumula entre sesiones.</p>
+    <div class="table-wrap">
+      <table id="calibTable">
+        <thead><tr>
+          <th>Banda anunciada</th><th>n</th><th>Anunciado</th><th>Real</th><th>Error</th>
+        </tr></thead>
+        <tbody><tr><td colspan="5" class="empty">Sin operaciones registradas todavia.</td></tr></tbody>
+      </table>
+    </div>
+    <p class="honest" id="calibVerdict">Ejecuta el bot en simulacion para llenar esta tabla.</p>
+    <button class="btn ghost" id="btnResetCalib">Borrar historial de calibracion</button>
   </div>
 </section>
 
@@ -345,6 +436,27 @@
     </div>
     <p class="honest" id="rkOut"></p>
   </div>
+
+  <div class="card">
+    <h2>Sostenibilidad: cuanto dura el capital</h2>
+    <div class="grid2">
+      <label>Capital (USD)
+        <input id="suBankroll" type="number" step="10" min="10" value="100">
+      </label>
+      <label>Stake por operacion (USD)
+        <input id="suStake" type="number" step="1" min="1" value="1">
+      </label>
+    </div>
+    <div class="table-wrap">
+      <table id="sustainTable">
+        <thead><tr>
+          <th>Contrato</th><th>Pago</th><th>VE</th><th>Vida media</th><th>Ruina</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="honest" id="sustainNote"></p>
+  </div>
 </section>
 
 </main>
@@ -355,6 +467,7 @@
 
 <script src="js/api.js"></script>
 <script src="js/stats.js"></script>
+<script src="js/edge.js"></script>
 <script src="js/trader.js"></script>
 <script src="js/app.js"></script>
 </body>

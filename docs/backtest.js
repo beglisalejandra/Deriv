@@ -12,8 +12,9 @@
 
 global.window = {};
 require('../js/stats.js');
+require('../js/edge.js');
 require('../js/trader.js');
-const { DigitStats, Risk, TradeEngine } = global.window;
+const { DigitStats, Risk, TradeEngine, Edge } = global.window;
 
 // ---- Modelo de pagos -------------------------------------------------------
 // Deriv cotiza cada contrato como: pago = (1/probabilidad) * (1 - ventaja).
@@ -198,3 +199,93 @@ for (const steps of [5, 6, 7, 8, 10, 12]) {
   );
 }
 console.log('');
+
+/* =======================================================================
+ *  5. La puerta de entrada: ¿protege de verdad?
+ * ===================================================================== */
+
+console.log('\n=== 5. Puerta de entrada (exige 95% de certeza de rentabilidad) ===\n');
+
+// Genera un flujo de digitos. bias=0 -> uniforme; bias>0 -> el 7 sale de mas.
+function makeStream(bias) {
+  return function () {
+    if (bias > 0 && Math.random() < bias) return 7;
+    return Math.floor(Math.random() * 10);
+  };
+}
+
+function sessionWithGate(opts) {
+  const { useGate, bias, maxTrades, windowTicks, minSample, threshold, warmup } = opts;
+  const next = makeStream(bias);
+  const stats = new DigitStats(6000);
+  for (let i = 0; i < warmup; i++) stats.digits.push(next());
+
+  const strat = DigitStats.STRATEGIES.matches_hot;
+  let pnl = 0, taken = 0, blocked = 0, wins = 0;
+
+  for (let t = 0; t < maxTrades; t++) {
+    const rep = stats.report(windowTicks);
+    const sig = strat.run(rep);
+    const mult = payoutMult(sig.contract_type, sig.barrier);
+
+    const gate = Edge.evaluateEntry({
+      wins: Edge.countWins(stats.digits, sig.contract_type, sig.barrier),
+      n: stats.digits.length,
+      payoutMult: mult,
+      theoreticalP: DigitStats.theoreticalWinProb(sig.contract_type, sig.barrier),
+      threshold, minSample
+    });
+
+    const d = next();
+    if (useGate && !gate.ok) { blocked++; }
+    else {
+      taken++;
+      const won = TradeEngine.evaluate(sig.contract_type, sig.barrier, d);
+      if (won) wins++;
+      pnl += won ? (mult - 1) : -1;
+    }
+    stats.digits.push(d);
+    if (stats.digits.length > 6000) stats.digits.shift();
+  }
+  return { pnl, taken, blocked, wins };
+}
+
+function aggregate(n, opts) {
+  let pnl = 0, taken = 0, blocked = 0, wins = 0, losers = 0;
+  for (let i = 0; i < n; i++) {
+    const r = sessionWithGate(opts);
+    pnl += r.pnl; taken += r.taken; blocked += r.blocked; wins += r.wins;
+    if (r.pnl < 0) losers++;
+  }
+  return { pnl: pnl / n, taken: taken / n, blocked: blocked / n,
+           winRate: taken ? wins / taken : 0, loserRate: losers / n };
+}
+
+const base = { maxTrades: 300, windowTicks: 100, minSample: 500,
+               threshold: 0.95, warmup: 800 };
+const SESSIONS = 300;
+
+console.log('escenario'.padEnd(34), 'operadas'.padStart(10), 'bloqueadas'.padStart(11),
+            'acierto'.padStart(9), 'P/L medio'.padStart(11));
+console.log('-'.repeat(78));
+
+for (const sc of [
+  { name: 'RNG justo, SIN puerta',    useGate: false, bias: 0 },
+  { name: 'RNG justo, CON puerta',    useGate: true,  bias: 0 },
+  { name: 'Sesgo real 8%, SIN puerta',useGate: false, bias: 0.08 },
+  { name: 'Sesgo real 8%, CON puerta',useGate: true,  bias: 0.08 }
+]) {
+  const r = aggregate(SESSIONS, Object.assign({}, base, sc));
+  console.log(
+    sc.name.padEnd(34),
+    r.taken.toFixed(1).padStart(10),
+    r.blocked.toFixed(1).padStart(11),
+    pct(r.winRate).padStart(9),
+    usd(r.pnl).padStart(11)
+  );
+}
+
+console.log('\n  Lectura: sobre un generador uniforme la puerta bloquea casi todo y el');
+console.log('  resultado se acerca a cero en lugar de sangrar. Sobre una fuente con');
+console.log('  sesgo real la puerta lo detecta y deja operar. No es un "no" fijo:');
+console.log('  es un detector que responde a la evidencia.\n');

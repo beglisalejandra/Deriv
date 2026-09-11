@@ -31,6 +31,7 @@
     this.onTrade = function () {};
     this.onState = function () {};
     this.onLog = function () {};
+    this.onGate = function () {};
   }
 
   TradeEngine.prototype.reset = function () {
@@ -45,6 +46,8 @@
     this.maxDrawdown = 0;
     this.peakPnl = 0;
     this.stopReason = null;
+    this.gateBlocks = 0;
+    this.lastGate = null;
   };
 
   TradeEngine.prototype.nextStake = function () {
@@ -149,6 +152,31 @@
         return null;
       }
 
+      // Puerta de entrada: solo se opera si la tasa de acierto medida supera
+      // el punto de equilibrio del pago con la certeza exigida.
+      var gate = null;
+      if (global.Edge) {
+        gate = global.Edge.evaluateEntry({
+          wins: global.Edge.countWins(self.stats.digits, signal.contract_type, signal.barrier),
+          n: self.stats.digits.length,
+          payoutMult: payoutMult,
+          theoreticalP: global.DigitStats.theoreticalWinProb(signal.contract_type, signal.barrier),
+          threshold: c.gateThreshold,
+          minSample: c.gateMinSample
+        });
+        self.lastGate = gate;
+        self.onGate(gate);
+      }
+      if (c.requireGate && (!gate || !gate.ok)) {
+        self.gateBlocks++;
+        if (self.gateBlocks === 1 || self.gateBlocks % 25 === 0) {
+          self.onLog('Puerta cerrada (' + self.gateBlocks + '): ' +
+                     (gate ? gate.reasons[0] : 'sin evaluacion disponible'));
+        }
+        return null;
+      }
+      signal.statedProb = gate ? gate.posterior.mean : null;
+
       if (c.mode === 'sim') return self._settleSim(signal, stake, payoutMult, rep);
       return self.api.buy(p.id, p.ask_price).then(function (b) {
         self.onLog('Compra ' + signal.contract_type +
@@ -170,6 +198,7 @@
             resultDigit: contract.exit_tick_display_value != null
               ? Number(String(contract.exit_tick_display_value).slice(-1)) : null,
             reason: signal.reason,
+            statedProb: signal.statedProb,
             contract_id: contract.contract_id
           });
         });
@@ -205,6 +234,7 @@
             exit: self.stats.prices[startLen + need - 1],
             resultDigit: d,
             reason: signal.reason,
+            statedProb: signal.statedProb,
             contract_id: null
           }));
         } else if (waited > 60000) {

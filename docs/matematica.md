@@ -157,3 +157,109 @@ Y una lectura útil del punto 1: si el objetivo es "x7 o x10", el escáner te di
 ese multiplicador solo existe en los contratos de ~10% de acierto, que son
 precisamente los de mayor comisión. El multiplicador alto y la comisión alta son
 la misma cosa vista desde dos lados.
+
+---
+
+## 7. La regla de decisión
+
+Las secciones anteriores dicen por qué no hay ventaja. Esta dice **cómo se comprueba
+antes de cada entrada**, que es lo que ejecuta la puerta de la app.
+
+### Punto de equilibrio
+
+Un contrato que paga `m` veces el stake necesita una tasa de acierto de al menos:
+
+```
+p* = 1 / m
+```
+
+Por debajo de `p*` la operación pierde dinero en promedio, por muy alto que sea el pago.
+Con `m = 8.9286`, `p* = 11.20%`. El generador entrega `10.00%`. Faltan **1.20 puntos
+porcentuales**, y esa es toda la historia.
+
+### Posterior bayesiana
+
+Con `w` aciertos en `n` intentos y un prior Beta(α₀, β₀):
+
+```
+posterior = Beta(α₀ + w, β₀ + n − w)
+```
+
+La app usa el **prior de Jeffreys, Beta(0.5, 0.5)**. Es deliberado: un prior débil deja
+que manden los datos. Si alguien sospecha que el resultado viene impuesto por la
+suposición previa, con n ≥ 500 el prior es irrelevante — puede comprobarlo cambiándolo.
+
+La cifra que muestra la app es la masa de esa posterior por encima del equilibrio:
+
+```
+P(p > p* | datos) = 1 − CDF_Beta(p* ; α₀+w, β₀+n−w)
+```
+
+Se calcula con la función beta incompleta regularizada `I_x(a,b)`.
+
+### La puerta
+
+```
+ENTRAR  ⟺  P(p > p* | datos) ≥ umbral   Y   n ≥ muestra mínima
+```
+
+Por defecto: umbral 95%, muestra mínima 500 ticks.
+
+Las dos condiciones hacen falta. Sin la segunda, una racha corta dispara la puerta: con
+12 aciertos en 100 intentos la tasa medida es 12% —por encima del 11.20% de equilibrio—
+pero la certeza es solo del 61%, y el intervalo creíble al 95% va de 6.7% a 19.4%. Esos
+datos no distinguen una ventaja de una racha.
+
+### Por qué hay que corregir por comparaciones múltiples
+
+El panel del video mira diez dígitos y anuncia el más extremo. Eso no es una prueba: es
+diez pruebas, y quedarse con la mejor.
+
+Con datos perfectamente uniformes, la probabilidad de que **algún** dígito dé p < 0.05 por
+azar es:
+
+```
+1 − (1 − 0.05)^10 ≈ 40%
+```
+
+Cuatro de cada diez ventanas producirán un "hallazgo" que no existe. La pestaña *Rigor*
+aplica **Holm-Bonferroni** y muestra las dos columnas, cruda y corregida, para que se vea
+la diferencia. En una corrida real de 643 ticks: el dígito 1 apareció al 7.15% con
+p crudo = 0.0149 —aparentemente significativo— y p corregido = 0.1485. No lo era.
+
+### Calibración
+
+Una probabilidad anunciada solo vale si se cumple. La app registra cada predicción con su
+probabilidad declarada y el resultado real, los agrupa en bandas y compara:
+
+```
+error de calibración = frecuencia real observada − probabilidad anunciada
+```
+
+Una herramienta honesta cae sobre la diagonal. La del video anunciaba 78% sobre eventos
+que ocurren el 10% de las veces: un error de 68 puntos porcentuales.
+
+---
+
+## 8. Kelly y el tamaño óptimo
+
+Para una apuesta con probabilidad `p` y pago `m` (ganancia neta `b = m − 1`):
+
+```
+f* = (p·b − (1 − p)) / b
+```
+
+`f*` es la fracción del capital que maximiza el crecimiento a largo plazo.
+
+Para Matches con `p = 0.10` y `m = 8.9286`:
+
+```
+f* = (0.10 × 7.9286 − 0.90) / 7.9286 = −0.0135
+```
+
+**Negativa.** El criterio de Kelly, que es la respuesta matemática a "cuánto apostar",
+dice aquí: nada. Una fracción negativa significaría tomar el otro lado de la apuesta, que
+es justo lo que hace la casa.
+
+Todos los contratos de dígitos dan Kelly negativo. Esa es la misma conclusión de la
+sección 3 expresada como decisión de tamaño en lugar de como valor esperado.

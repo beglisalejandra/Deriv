@@ -19,7 +19,10 @@
     tickSub: null,
     balanceSub: null,
     analyzing: false,
-    lastSignal: null
+    lastSignal: null,
+    lastGate: null,
+    payoutCache: {},
+    payoutAt: 0
   };
 
   var DIGIT_COLORS = ['#dc2626','#ea580c','#d97706','#65a30d','#16a34a',
@@ -269,6 +272,15 @@
     }
 
     if (!$('predCard').hidden) renderPrediction(rep);
+
+    // La puerta y el escaneo de sesgo se refrescan cada 2 s: recalcularlos en
+    // cada tick no aporta nada y cotizar el pago tiene limite de peticiones.
+    var now = Date.now();
+    if (now - (state.gateAt || 0) > 2000) {
+      state.gateAt = now;
+      renderBias();
+      if (state.lastSignal) evaluateGate(state.lastSignal).then(renderGate);
+    }
   }
 
   /* ----------------------------- Prediccion ----------------------------- */
@@ -337,11 +349,209 @@
 
   $('btnPredict').addEventListener('click', function () {
     $('predCard').hidden = false;
+    $('gateCard').hidden = false;
+    state.gateAt = 0;
     render();
     $('predCard').scrollIntoView({ behavior:'smooth', block:'nearest' });
   });
   $('strategy').addEventListener('change', function () { if (!$('predCard').hidden) render(); });
   $('windowTicks').addEventListener('change', render);
+
+
+  /* ------------------------ Puerta de decision -------------------------- */
+
+  var calib = new window.Edge.Calibration('deriv_calibracion');
+
+  /* Pago vigente para un contrato. Se cachea: cotizar en cada tick agotaria
+     el limite de peticiones de la API. */
+  function payoutFor(type, barrier) {
+    var key = type + '|' + barrier;
+    var now = Date.now();
+    if (state.payoutCache[key] && now - state.payoutAt < 20000) {
+      return Promise.resolve(state.payoutCache[key]);
+    }
+    if (!api.isOpen()) return Promise.resolve(null);
+    return api.proposal({
+      amount: Number($('baseStake').value) || 1,
+      contract_type: type, currency: state.currency,
+      duration: Number($('duration').value) || 1, duration_unit: 't',
+      symbol: state.symbol, barrier: barrier
+    }).then(function (pr) {
+      var mult = pr.payout / pr.ask_price;
+      state.payoutCache[key] = mult;
+      state.payoutAt = now;
+      return mult;
+    }).catch(function () { return null; });
+  }
+
+  function evaluateGate(sig) {
+    return payoutFor(sig.contract_type, sig.barrier).then(function (mult) {
+      if (!mult) return null;
+      var all = stats.digits;
+      var gate = window.Edge.evaluateEntry({
+        wins: window.Edge.countWins(all, sig.contract_type, sig.barrier),
+        n: all.length,
+        payoutMult: mult,
+        theoreticalP: window.DigitStats.theoreticalWinProb(sig.contract_type, sig.barrier),
+        threshold: Number($('gateThreshold').value),
+        minSample: Number($('gateMinSample').value)
+      });
+      gate.payoutMult = mult;
+      gate.contract_type = sig.contract_type;
+      gate.barrier = sig.barrier;
+      state.lastGate = gate;
+      return gate;
+    });
+  }
+
+  function renderGate(gate) {
+    var card = $('gateCard');
+    card.hidden = false;
+    if (!gate) {
+      card.className = 'card gate';
+      $('verdictText').textContent = 'Sin cotizacion';
+      $('verdictSub').textContent = 'No se pudo obtener el pago vigente de la API.';
+      return;
+    }
+    card.className = 'card gate ' + (gate.ok ? 'go' : 'nogo');
+    $('verdictText').textContent = gate.decision;
+    $('verdictSub').textContent = gate.ok
+      ? 'La ventaja medida cubre la comision del pago.'
+      : 'Entrar aqui pierde dinero en promedio.';
+
+    $('gateProb').textContent = pct(gate.probProfitable);
+    var thr = Number($('gateThreshold').value);
+    $('gateMeter').style.width = Math.min(100, gate.probProfitable * 100) + '%';
+    $('gateThr').style.left = (thr * 100) + '%';
+    $('gateMeterNote').textContent =
+      'La marca negra es el ' + (thr * 100).toFixed(0) + '% exigido. La barra debe pasarla.';
+
+    $('gateBreakeven').textContent = (gate.breakEven * 100).toFixed(2) + '%';
+    $('gateMeasured').textContent = (gate.posterior.mean * 100).toFixed(2) + '%';
+    $('gateSample').textContent = gate.posterior.n + ' ticks';
+    var ev = $('gateEv');
+    ev.textContent = (gate.evPosterior * 100).toFixed(2) + '%';
+    ev.className = gate.evPosterior >= 0 ? 'pos' : 'neg';
+
+    $('gateReasons').innerHTML = gate.reasons.map(function (r) {
+      var good = /supera el punto de equilibrio/.test(r);
+      return '<li class="' + (good ? 'good' : '') + '">' + r + '</li>';
+    }).join('');
+  }
+
+  ['gateThreshold','gateMinSample'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      if (state.lastSignal) evaluateGate(state.lastSignal).then(renderGate);
+    });
+  });
+
+  /* ------------------------- Deteccion de sesgo ------------------------- */
+
+  function renderBias() {
+    var r = stats.counts(0);
+    var scan = window.Edge.biasScan(r.counts, r.total);
+    var tb = $('biasTable').querySelector('tbody');
+    if (!scan.ready || r.total < 50) {
+      tb.innerHTML = '<tr><td colspan="6" class="empty">Acumulando ticks (' + r.total + ').</td></tr>';
+      return;
+    }
+    tb.innerHTML = scan.digits.map(function (d) {
+      return '<tr>' +
+        '<td><b>' + d.digit + '</b></td>' +
+        '<td>' + d.count + '</td>' +
+        '<td>' + (d.freq * 100).toFixed(2) + '%</td>' +
+        '<td>' + d.pRaw.toFixed(4) + '</td>' +
+        '<td>' + d.pAdj.toFixed(4) + '</td>' +
+        '<td><span class="flag ' + (d.significant ? 'sig' : '') + '">' +
+          (d.significant ? 'sesgo' : 'normal') + '</span></td>' +
+        '</tr>';
+    }).join('');
+
+    var v = $('biasVerdict');
+    if (scan.anySignificant) {
+      v.textContent = 'Se detecta desviacion significativa en ' + scan.significant.length +
+        ' digito(s) tras corregir por las 10 comparaciones. Con ' + scan.total +
+        ' ticks, la desviacion minima detectable es de +/-' + pct(scan.detectable) +
+        '. Confirmalo con mas muestra antes de actuar.';
+    } else {
+      var minRaw = Math.min.apply(null, scan.digits.map(function (d) { return d.pRaw; }));
+      v.textContent = 'Ningun digito se desvia de forma significativa. El p-valor crudo mas bajo es ' +
+        minRaw.toFixed(4) + ', que tras corregir por las 10 comparaciones queda en ' +
+        scan.minAdjusted.toFixed(4) + '. Con ' + scan.total + ' ticks se detectaria un sesgo de +/-' +
+        pct(scan.detectable) + ' o mayor.';
+    }
+  }
+
+  /* --------------------------- Calibracion ------------------------------ */
+
+  function renderCalibration() {
+    var rep = calib.report();
+    var tb = $('calibTable').querySelector('tbody');
+    if (!rep.rows.length) {
+      tb.innerHTML = '<tr><td colspan="5" class="empty">Sin operaciones registradas todavia.</td></tr>';
+      $('calibVerdict').textContent = 'Ejecuta el bot en simulacion para llenar esta tabla.';
+      return;
+    }
+    tb.innerHTML = rep.rows.map(function (r) {
+      var cls = Math.abs(r.error) < 0.05 ? 'pos' : 'neg';
+      return '<tr>' +
+        '<td>' + (r.band[0] * 100).toFixed(0) + '–' + Math.min(100, r.band[1] * 100).toFixed(0) + '%</td>' +
+        '<td>' + r.n + '</td>' +
+        '<td>' + pct(r.stated) + '</td>' +
+        '<td>' + pct(r.realized) + '</td>' +
+        '<td class="' + cls + '">' + (r.error >= 0 ? '+' : '') + (r.error * 100).toFixed(1) + ' pp</td>' +
+        '</tr>';
+    }).join('');
+    $('calibVerdict').textContent = 'Error medio de calibracion: ' + (rep.mae * 100).toFixed(1) +
+      ' puntos porcentuales sobre ' + rep.total + ' operaciones. Cuanto mas cerca de 0, mas honesta ' +
+      'es la probabilidad anunciada.';
+  }
+
+  $('btnResetCalib').addEventListener('click', function () {
+    calib.reset(); renderCalibration(); log('Historial de calibracion borrado.');
+  });
+
+  /* ------------------------- Sostenibilidad ----------------------------- */
+
+  function renderSustain() {
+    var bankroll = Number($('suBankroll').value) || 100;
+    var stake = Number($('suStake').value) || 1;
+    var rows = [
+      ['Matches / Over 8 / Under 1', 0.10, 8.9286],
+      ['Over 7 (gana 8 y 9)',        0.20, 4.4643],
+      ['Par / Impar',                0.50, 1.9500],
+      ['Differs / Over 0 / Under 9', 0.90, 1.0900]
+    ];
+    var out = rows.map(function (r) {
+      var s = window.Edge.sustainability({
+        winProb: r[1], payoutMult: r[2], stake: stake, bankroll: bankroll,
+        maxTrades: 5000, runs: 1200
+      });
+      return { name: r[0], mult: r[2], s: s };
+    });
+    $('sustainTable').querySelector('tbody').innerHTML = out.map(function (o) {
+      return '<tr>' +
+        '<td>' + o.name + '</td>' +
+        '<td>x' + o.mult.toFixed(2) + '</td>' +
+        '<td class="neg">' + (o.s.ev * 100).toFixed(2) + '%</td>' +
+        '<td>' + (isFinite(o.s.analyticLifetime) ? Math.round(o.s.analyticLifetime) + ' ops' : '—') + '</td>' +
+        '<td>' + pct(o.s.ruinRate) + '</td>' +
+        '</tr>';
+    }).join('');
+
+    var best = out[out.length - 1], worst = out[0];
+    var ratio = worst.s.analyticLifetime ? best.s.analyticLifetime / worst.s.analyticLifetime : 1;
+    $('sustainNote').textContent =
+      'Con ' + bankroll.toFixed(0) + ' USD y stake de ' + stake.toFixed(0) + ' USD, el contrato de menor ' +
+      'comision dura ' + ratio.toFixed(1) + ' veces mas que el de pago alto (' +
+      Math.round(best.s.analyticLifetime) + ' frente a ' + Math.round(worst.s.analyticLifetime) +
+      ' operaciones). Ninguno es rentable: elegir bien alarga la sesion, no la vuelve positiva. ' +
+      'La ruina mostrada es a 5000 operaciones.';
+  }
+
+  ['suBankroll','suStake'].forEach(function (id) {
+    $(id).addEventListener('input', renderSustain);
+  });
 
   /* -------------------------- Escaner de pagos -------------------------- */
 
@@ -452,6 +662,9 @@
       maxTrades: Number($('maxTrades').value) || 0,
       maxLossStreak: Number($('maxLossStreak').value) || 0,
       minPayoutMult: Number($('minPayoutMult').value) || 0,
+      requireGate: $('requireGate').checked,
+      gateThreshold: Number($('gateThreshold').value),
+      gateMinSample: Number($('gateMinSample').value),
       minTicks: 30,
       cooldownMs: 800
     };
@@ -474,11 +687,17 @@
     $('btnRun').disabled = engine.running || !api.isOpen();
     $('btnStop').disabled = !engine.running;
     $('botStatus').textContent = engine.running
-      ? 'Corriendo en modo ' + (engine.cfg.mode === 'real' ? 'REAL' : 'simulacion') + '…'
+      ? 'Corriendo en modo ' + (engine.cfg.mode === 'real' ? 'REAL' : 'simulacion') + '…' +
+        (engine.gateBlocks ? ' Puerta cerrada ' + engine.gateBlocks + ' vez(ces); sin operar.' : '')
       : (engine.stopReason || 'El bot no esta corriendo.');
     renderResults();
   };
+  engine.onGate = renderGate;
   engine.onTrade = function (t) {
+    if (t.statedProb !== null && t.statedProb !== undefined) {
+      calib.record(t.statedProb, t.won);
+      renderCalibration();
+    }
     log((t.won ? 'GANADA ' : 'perdida ') + t.contract_type +
         (t.barrier === null || t.barrier === undefined ? '' : '[' + t.barrier + ']') +
         ' digito=' + t.resultDigit + ' P/L=' + money(t.profit));
@@ -610,6 +829,8 @@
   renderEV();
   renderRisk();
   renderResults();
+  renderCalibration();
+  renderSustain();
 
   try {
     var saved = localStorage.getItem('deriv_token');
