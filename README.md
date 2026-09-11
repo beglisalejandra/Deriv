@@ -27,26 +27,43 @@ token que copiar entre pantallas ni dos dispositivos abiertos a la vez.
 
 ### 1. Abrir la app
 
-**Opción A — GitHub Pages** (recomendada, funciona desde el móvil):
-en el repo → *Settings* → *Pages* → *Source: Deploy from a branch* → rama `claude/zen-cori-njevfm`, carpeta `/ (root)`.
-En un minuto tendrás una URL como `https://beglisalejandra.github.io/Deriv/`.
+**Opción A — GitHub Pages** (recomendada; se abre desde el móvil):
 
-**Opción B — local:**
+En el repo → *Settings* → *Pages* → *Source: Deploy from a branch* →
+rama `claude/zen-cori-njevfm`, carpeta `/ (root)` → *Save*.
+En un par de minutos queda en `https://beglisalejandra.github.io/Deriv/`.
+
+**Opción B — en tu ordenador:**
 ```bash
-git clone https://github.com/beglisalejandra/Deriv.git
+git clone -b claude/zen-cori-njevfm https://github.com/beglisalejandra/Deriv.git
 cd Deriv
 python3 -m http.server 8000
 # abrir http://localhost:8000
 ```
+Hace falta un servidor, aunque sea local: abrir `index.html` con doble clic
+(`file://`) puede fallar, porque algunos navegadores rechazan la conexión
+WebSocket desde ese origen.
 
-### 2. Crear el API token
+### 2. Mirarla sin cuenta
+
+Pulsa **«Explorar sin cuenta»**. No pide token, no toca la red y no mueve dinero:
+genera los ticks en tu propio navegador con dígitos uniformes 0–9, que es el modelo
+del generador real, y cotiza los contratos con la misma fórmula de pago.
+
+Funciona todo: panel en vivo, decisión de entrada, escáner de pagos, pestaña Rigor,
+y el bot en modo simulación. El modo real está bloqueado mientras estés en
+demostración — verificado: cero llamadas de compra.
+
+Es la forma de recorrer la herramienta entera antes de crear ningún token.
+
+### 3. Crear el API token
 
 En `app.deriv.com` → **Configuración** → **API token** → marcar **Read** y **Trade** → crear.
 
 Empieza con una cuenta **Demo**. La app muestra un distintivo rojo `REAL` o azul `DEMO`
 arriba a la derecha para que nunca haya duda de dónde estás operando.
 
-### 3. Operar
+### 4. Operar
 
 1. **Panel** → pegar el token → *Conectar*. Elegir índice y estrategia → *Iniciar análisis* → *Predecir*.
    Aparece la **decisión de entrada**: `ENTRAR` o `NO ENTRAR`, con el porcentaje de

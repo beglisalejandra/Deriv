@@ -133,6 +133,27 @@
       });
   });
 
+
+  $('btnDemo').addEventListener('click', function () {
+    setConn('conectando', 'Iniciando demostracion local…');
+    api.connectDemo()
+      .then(function () { return api.authorize('demo'); })
+      .then(function (acc) {
+        state.currency = 'USD';
+        var badge = $('accountBadge');
+        badge.textContent = 'DEMOSTRACION';
+        badge.className = 'badge demo';
+        setConn('conectado', 'Demostracion local: ticks generados en este navegador, sin red.');
+        toggleConnected(true);
+        $('mode').value = 'sim';
+        $('mode').dispatchEvent(new Event('change'));
+        log('Modo demostracion. Los datos son simulados; ninguna orden sale de este equipo.');
+        return loadSymbols();
+      })
+      .then(function () { startTicks(); })
+      .catch(function (e) { setConn('', 'Error: ' + e.message); });
+  });
+
   $('btnDisconnect').addEventListener('click', function () {
     engine.stop('Conexion cerrada por el usuario.');
     stopTicks();
@@ -672,6 +693,12 @@
 
   $('btnRun').addEventListener('click', function () {
     var cfg = readConfig();
+    if (cfg.mode === 'real' && api.demo) {
+      $('botStatus').textContent = 'El modo demostracion no envia ordenes reales. ' +
+        'Conecta con un token para operar, o usa el modo Simulacion.';
+      log('Modo real bloqueado: estas en demostracion local.');
+      return;
+    }
     if (cfg.mode === 'real' && !$('realConfirm').checked) {
       $('botStatus').textContent = 'Marca la casilla de confirmacion antes de operar en real.';
       return;

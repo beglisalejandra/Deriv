@@ -20,6 +20,7 @@
   }
 
   DerivAPI.prototype.isOpen = function () {
+    if (this.demo) return true;
     return !!this.ws && this.ws.readyState === 1;
   };
 
@@ -60,6 +61,8 @@
   };
 
   DerivAPI.prototype.disconnect = function () {
+    this.demo = false;
+    if (this.demoTimer) { clearInterval(this.demoTimer); this.demoTimer = null; }
     this._stopPing();
     try { if (this.ws) this.ws.close(); } catch (e) {}
     this.ws = null;
@@ -158,6 +161,10 @@
   };
 
   DerivAPI.prototype.forget = function (reqId) {
+    if (this.demo) {
+      if (reqId === -2 && this.demoTimer) { clearInterval(this.demoTimer); this.demoTimer = null; }
+      return;
+    }
     var subId = this.subIds.get(reqId);
     this.streams.delete(reqId);
     this.subIds.delete(reqId);
@@ -166,10 +173,61 @@
     }
   };
 
+
+  /* =======================================================================
+   *  Modo demostracion — sin cuenta, sin red, sin dinero
+   *
+   *  Genera un flujo de ticks localmente con digitos uniformes sobre 0-9,
+   *  que es el modelo del generador real de Deriv, y cotiza los contratos
+   *  con la misma formula pago = (1/probabilidad) x (1 - comision).
+   *  Sirve para recorrer toda la herramienta antes de tocar una cuenta.
+   * ===================================================================== */
+
+  var DEMO_SYMBOLS = [
+    { symbol:'1HZ10V',  display_name:'Volatility 10 (1s) Index',  pip:0.001, base:9582.36,  pipSize:3 },
+    { symbol:'1HZ25V',  display_name:'Volatility 25 (1s) Index',  pip:0.01,  base:775187.34,pipSize:2 },
+    { symbol:'1HZ50V',  display_name:'Volatility 50 (1s) Index',  pip:0.01,  base:243.81,   pipSize:2 },
+    { symbol:'1HZ75V',  display_name:'Volatility 75 (1s) Index',  pip:0.01,  base:78000.00, pipSize:2 },
+    { symbol:'1HZ100V', display_name:'Volatility 100 (1s) Index', pip:0.01,  base:676.97,   pipSize:2 },
+    { symbol:'R_75',    display_name:'Volatility 75 Index',       pip:0.0001,base:678.56,   pipSize:4 }
+  ];
+
+  DerivAPI.prototype.connectDemo = function () {
+    this.disconnect();
+    this.demo = true;
+    this.demoTimer = null;
+    this.demoPrice = 78000;
+    this.account = {
+      loginid: 'DEMO-LOCAL', balance: 1000, currency: 'USD', is_virtual: 1
+    };
+    this.onStatus('conectado');
+    return Promise.resolve();
+  };
+
+  DerivAPI.prototype._demoTick = function (pipSize) {
+    // Camino aleatorio en el precio, con el ultimo digito uniforme sobre 0-9
+    // e independiente del anterior, igual que en el producto real.
+    var step = (Math.random() - 0.5) * 2;
+    this.demoPrice = Math.max(1, this.demoPrice + step);
+    var unit = Math.pow(10, -pipSize);
+    var digit = Math.floor(Math.random() * 10);
+    var base = Math.floor(this.demoPrice / (unit * 10)) * (unit * 10);
+    return Number((base + digit * unit).toFixed(pipSize));
+  };
+
+  DerivAPI.prototype._demoPayout = function (type, barrier) {
+    var p = global.DigitStats.theoreticalWinProb(type, Number(barrier));
+    if (!p) return null;
+    // Comision real observada: ~10.7% en eventos raros, ~1.9% en los seguros.
+    var edge = p <= 0.2 ? 0.1071 : p >= 0.8 ? 0.0190 : 0.1071 + ((p - 0.2) / 0.6) * (0.0190 - 0.1071);
+    return (1 / p) * (1 - edge);
+  };
+
   /* ---------------------- Atajos de alto nivel ---------------------- */
 
   DerivAPI.prototype.authorize = function (token) {
     var self = this;
+    if (this.demo) return Promise.resolve(this.account);
     return this.send({ authorize: token }).then(function (r) {
       self.account = r.authorize;
       return r.authorize;
@@ -177,11 +235,21 @@
   };
 
   DerivAPI.prototype.activeSymbols = function () {
+    if (this.demo) {
+      return Promise.resolve(DEMO_SYMBOLS.map(function (s) {
+        return { symbol: s.symbol, display_name: s.display_name, pip: s.pip,
+                 submarket: 'random_index', exchange_is_open: 1 };
+      }));
+    }
     return this.send({ active_symbols: 'brief', product_type: 'basic' })
       .then(function (r) { return r.active_symbols || []; });
   };
 
   DerivAPI.prototype.balance = function (onUpdate) {
+    if (this.demo) {
+      onUpdate({ balance: this.account.balance, currency: 'USD' });
+      return Promise.resolve({ reqId: -1 });
+    }
     return this.subscribe({ balance: 1, account: 'current' }, function (d, err) {
       if (!err && d && d.balance) onUpdate(d.balance);
     });
@@ -189,6 +257,23 @@
 
   /* Historial + stream de ticks en una sola llamada. */
   DerivAPI.prototype.ticksHistory = function (symbol, count, onTick, onHistory) {
+    if (this.demo) {
+      var self = this;
+      var meta = DEMO_SYMBOLS.filter(function (s) { return s.symbol === symbol; })[0] || DEMO_SYMBOLS[3];
+      var ps = meta.pipSize;
+      self.demoPrice = meta.base;
+      if (self.demoTimer) clearInterval(self.demoTimer);
+      var prices = [], times = [], now = Math.floor(Date.now() / 1000);
+      for (var i = 0; i < count; i++) { prices.push(self._demoTick(ps)); times.push(now - count + i); }
+      setTimeout(function () {
+        if (onHistory) onHistory({ prices: prices, times: times }, ps);
+        self.demoTimer = setInterval(function () {
+          if (onTick) onTick({ symbol: symbol, quote: self._demoTick(ps),
+                               epoch: Math.floor(Date.now() / 1000), pip_size: ps });
+        }, 700);
+      }, 30);
+      return Promise.resolve({ reqId: -2 });
+    }
     return this.subscribe({
       ticks_history: symbol,
       count: count,
@@ -203,6 +288,14 @@
 
   /* Cotizacion de un contrato (sin suscripcion, una sola foto). */
   DerivAPI.prototype.proposal = function (params) {
+    if (this.demo) {
+      var mult = this._demoPayout(params.contract_type, params.barrier);
+      if (!mult) return Promise.reject(new Error('Contrato no disponible en demostracion.'));
+      return Promise.resolve({
+        id: 'demo', ask_price: params.amount,
+        payout: Number((params.amount * mult).toFixed(2)), spot: this.demoPrice
+      });
+    }
     var req = {
       proposal: 1,
       amount: params.amount,
@@ -220,6 +313,10 @@
   };
 
   DerivAPI.prototype.buy = function (proposalId, price) {
+    if (this.demo) {
+      return Promise.reject(new Error(
+        'El modo demostracion no envia ordenes. Usa el modo Simulacion del bot.'));
+    }
     return this.send({ buy: proposalId, price: price }, 20000)
       .then(function (r) { return r.buy; });
   };

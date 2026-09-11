@@ -204,3 +204,4 @@ label.check.gateswitch{background:var(--teal-l); border:1px solid var(--teal);
 td .flag{font-size:.62rem; font-weight:700; padding:.12rem .35rem; border-radius:999px;
          background:#f1f5f9; color:var(--muted)}
 td .flag.sig{background:#fee2e2; color:#991b1b}
+.btn.demo{background:#fff; color:var(--teal-d); border:1px dashed var(--teal)}
