@@ -82,14 +82,18 @@
   };
 
   function toggleConnected(on) {
-    $('btnConnect').disabled = on;
+    // En demostracion local hay que poder conectar la cuenta real encima, asi
+    // que el token y su boton siguen disponibles. Solo se bloquean cuando ya
+    // hay una cuenta de verdad conectada.
+    var bloquear = on && !api.demo;
+    $('btnConnect').disabled = bloquear;
+    $('apiToken').disabled = bloquear;
+    $('appId').disabled = bloquear;
     $('btnDisconnect').disabled = !on;
     $('btnAnalysis').disabled = !on;
     $('btnPredict').disabled = !on;
     $('btnScan').disabled = !on;
     $('btnRun').disabled = !on;
-    $('apiToken').disabled = on;
-    $('appId').disabled = on;
   }
 
   $('btnConnect').addEventListener('click', function () {
@@ -98,6 +102,8 @@
     if (!token) { setConn('', 'Falta el API token.'); return; }
 
     setConn('conectando', 'Conectando…');
+    stopTicks();
+    engine.stop('Conexion cambiada de cuenta.');
     api.connect(appId)
       .then(function () { return api.authorize(token); })
       .then(function (acc) {
@@ -145,7 +151,6 @@
         badge.className = 'badge demo';
         setConn('conectado', 'Demostracion local: ticks generados en este navegador, sin red.');
         toggleConnected(true);
-        var rc = $('realConn'); if (rc) rc.open = false;
         $('mode').value = 'sim';
         $('mode').dispatchEvent(new Event('change'));
         log('Modo demostracion. Los datos son simulados; ninguna orden sale de este equipo.');

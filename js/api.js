@@ -28,6 +28,11 @@
     var self = this;
     return new Promise(function (resolve, reject) {
       try { if (self.ws) { self.ws.onclose = null; self.ws.close(); } } catch (e) {}
+      // Salir de la demostracion local si estaba activa: de lo contrario
+      // authorize devolveria la cuenta ficticia en lugar de la real.
+      self.demo = false;
+      if (self.demoTimer) { clearInterval(self.demoTimer); self.demoTimer = null; }
+      self.account = null;
       self.pending.clear(); self.streams.clear(); self.subIds.clear();
 
       var url = ENDPOINT + '?app_id=' + encodeURIComponent(appId) + '&l=ES&brand=deriv';
