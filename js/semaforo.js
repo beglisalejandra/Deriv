@@ -13,7 +13,8 @@
 
   var APP_ID = '1089';
   var estado = { corriendo:false, sub:null, pipSize:2, pagoReal:null,
-               ultimoAnalisis:null, mejorIndice:null, escanTimer:null };
+               ultimoAnalisis:null, mejorIndice:null, escanTimer:null,
+               cuentaTimer:null, cuentaFin:null, enVerde:false };
 
   var COLORES = ['#dc2626','#ea580c','#d97706','#65a30d','#16a34a',
                  '#0d9488','#0284c7','#4f46e5','#9333ea','#db2777'];
@@ -130,10 +131,38 @@
      el indice. Entrar donde mejor pagan es el unico filtro de entrada que
      cambia el resultado de verdad. -------------------------------------- */
 
-  var INDICES = ['1HZ10V','1HZ25V','1HZ50V','1HZ75V','1HZ100V','R_10','R_25','R_50','R_75','R_100'];
-  var NOMBRES = {'1HZ10V':'Vol 10 (1s)','1HZ25V':'Vol 25 (1s)','1HZ50V':'Vol 50 (1s)',
-                 '1HZ75V':'Vol 75 (1s)','1HZ100V':'Vol 100 (1s)','R_10':'Vol 10',
-                 'R_25':'Vol 25','R_50':'Vol 50','R_75':'Vol 75','R_100':'Vol 100'};
+  /* Los simbolos se piden a Deriv al conectar. Codificarlos a mano fallaba:
+     la API rechazaba 1HZ75V con InvalidSymbol. */
+  var INDICES = [];
+  var NOMBRES = {};
+
+  function cargarSimbolos() {
+    return api.activeSymbols().then(function (lista) {
+      var utiles = lista.filter(function (x) {
+        return x.submarket === 'random_index' && x.exchange_is_open !== 0;
+      });
+      if (!utiles.length) utiles = lista.filter(function (x) { return /^(R_|1HZ)/.test(x.symbol); });
+      INDICES = utiles.map(function (x) { return x.symbol; });
+      utiles.forEach(function (x) { NOMBRES[x.symbol] = x.display_name; });
+
+      var sel = $('simbolo'), previo = sel.value;
+      sel.innerHTML = '';
+      utiles.forEach(function (x) {
+        var o = document.createElement('option');
+        o.value = x.symbol; o.textContent = x.display_name;
+        o.dataset.pip = x.pip;
+        sel.appendChild(o);
+      });
+      if (INDICES.indexOf(previo) >= 0) sel.value = previo;
+      var opt = sel.options[sel.selectedIndex];
+      if (opt && opt.dataset.pip) {
+        var pip = Number(opt.dataset.pip);
+        estado.pipSize = pip > 0 ? Math.round(-Math.log10(pip)) : 2;
+      }
+      guardar();
+      return utiles;
+    });
+  }
 
   function escanearPagos() {
     if (!estado.corriendo) return Promise.resolve(null);
@@ -151,8 +180,13 @@
         barrier: lleva ? c.barrera : undefined
       }).then(function (p) {
         var mult = p.payout / p.ask_price;
-        out.push({ sym: sym, nombre: NOMBRES[sym], pago: mult,
-                   ve: window.Ronda.probDe(c.tipo, c.barrera) * mult - 1 });
+        // Lo que decide no es el pago suelto, sino la probabilidad de que la
+        // ronda alcance el objetivo antes del limite con ESE pago.
+        var an = window.Ronda.analizar({ tipo:c.tipo, barrera:c.barrera,
+                   stake:c.stake, tp:c.tp, sl:c.sl, pago:mult });
+        out.push({ sym: sym, nombre: NOMBRES[sym] || sym, pago: mult,
+                   exito: an ? an.probExito : 0,
+                   ve: an ? an.veRonda : 0 });
       }).catch(function () {})
         .then(function () {
           return new Promise(function (r) { setTimeout(r, 110); }).then(siguiente);
@@ -170,29 +204,65 @@
       estado.mejorIndice = null;
       return;
     }
-    lista.sort(function (a, b) { return b.pago - a.pago; });
+    lista.sort(function (a, b) { return b.exito - a.exito; });
     estado.mejorIndice = lista[0];
 
     var actual = cfg().simbolo;
     cont.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
-      '<th>Indice</th><th>Pago</th><th>Valor esperado</th></tr></thead><tbody>' +
+      '<th>Indice</th><th>Exito de la ronda</th><th>Pago</th></tr></thead><tbody>' +
       lista.map(function (x, n) {
         return '<tr class="' + (x.sym === actual ? 'actual' : n === 0 ? 'good' : '') + '">' +
           '<td>' + x.nombre + (n === 0 ? ' ★' : '') + '</td>' +
-          '<td><b>x' + x.pago.toFixed(2) + '</b></td>' +
-          '<td class="' + (x.ve >= 0 ? 'pos' : 'neg') + '">' + (x.ve * 100).toFixed(1) + '%</td>' +
+          '<td><b>' + (x.exito * 100).toFixed(1) + '%</b></td>' +
+          '<td>x' + x.pago.toFixed(2) + '</td>' +
           '</tr>';
       }).join('') + '</tbody></table></div>';
 
     if (lista[0].sym !== actual) {
       var mio = lista.filter(function (x) { return x.sym === actual; })[0];
-      $('notaEscaner').innerHTML = 'Ahora mismo <b>' + lista[0].nombre + '</b> paga <b>x' +
-        lista[0].pago.toFixed(2) + '</b>' +
-        (mio ? ', frente a x' + mio.pago.toFixed(2) + ' del que tienes puesto' : '') +
+      $('notaEscaner').innerHTML = 'Con tus mismos objetivo y limite, la ronda tiene <b>' +
+        (lista[0].exito * 100).toFixed(1) + '%</b> de exito en <b>' + lista[0].nombre + '</b>' +
+        (mio ? ', frente al ' + (mio.exito * 100).toFixed(1) + '% del que tienes puesto' : '') +
         '. Cambia el indice aqui y en el desplegable <b>Market</b> del bot.';
     } else {
-      $('notaEscaner').innerHTML = 'Estas en el indice que mejor paga ahora mismo: <b>x' +
-        lista[0].pago.toFixed(2) + '</b>.';
+      $('notaEscaner').innerHTML = 'Estas en el indice con mejor probabilidad de ronda: <b>' +
+        (lista[0].exito * 100).toFixed(1) + '%</b>.';
+    }
+  }
+
+
+  /* ------------------------- Cuenta atras del verde ---------------------
+     La senal se recalcula con cada tick. Este contador dice cuanto le
+     queda de validez a la lectura actual: si la condicion se rompe antes,
+     se corta al instante; si sigue en pie al llegar a cero, se renueva.
+     No predice cuanto durara el verde, marca cuando caduca lo medido. -- */
+
+  var VALIDEZ = 30;   // segundos
+
+  function arrancarCuenta() {
+    if (estado.cuentaTimer) return;             // ya corriendo, no reiniciar
+    estado.cuentaFin = Date.now() + VALIDEZ * 1000;
+    $('cuenta').hidden = false;
+    estado.cuentaTimer = setInterval(pintarCuenta, 200);
+    pintarCuenta();
+  }
+
+  function pararCuenta() {
+    if (estado.cuentaTimer) { clearInterval(estado.cuentaTimer); estado.cuentaTimer = null; }
+    estado.cuentaFin = null;
+    if ($('cuenta')) $('cuenta').hidden = true;
+  }
+
+  function pintarCuenta() {
+    if (!estado.cuentaFin) return;
+    var resto = Math.max(0, estado.cuentaFin - Date.now()) / 1000;
+    $('cuentaNum').textContent = resto.toFixed(1) + 's';
+    $('cuentaBarra').style.width = (resto / VALIDEZ * 100) + '%';
+    if (resto <= 0) {
+      // Caducada: se renueva solo si la senal sigue en verde al recalcular.
+      estado.cuentaFin = Date.now() + VALIDEZ * 1000;
+      $('cuentaNum').classList.add('renovado');
+      setTimeout(function () { $('cuentaNum').classList.remove('renovado'); }, 600);
     }
   }
 
@@ -222,6 +292,8 @@
     $('exitoRonda').textContent = pct(a.probExito);
 
     if (!estado.corriendo) {
+      estado.enVerde = false;
+      pararCuenta();
       t.className = 'card luz';
       $('luzTexto').textContent = 'Detenido';
       $('luzSub').textContent = 'Pulsa INICIAR para observar el mercado.';
@@ -231,6 +303,8 @@
 
     var m = evaluarMomento();
     if (!m || !m.listo) {
+      estado.enVerde = false;
+      pararCuenta();
       t.className = 'card luz';
       $('luzTexto').textContent = 'Midiendo…';
       $('luzSub').textContent = 'Acumulando ticks (' + (m ? m.n : 0) + ' de 100).';
@@ -243,30 +317,38 @@
 
     var mejor = estado.mejorIndice;
     var enMejor = !mejor || mejor.sym === c.simbolo;
-    var pagoBajo = mejor && !enMejor && (mejor.pago - a.pago) > 0.15;
+    var peorRonda = mejor && !enMejor && (mejor.exito - a.probExito) > 0.03;
 
     var luz, texto, sub;
-    if (pagoBajo) {
+    if (peorRonda) {
       luz = 'ambar';
       texto = 'CAMBIA DE INDICE';
-      sub = mejor.nombre + ' paga x' + mejor.pago.toFixed(2) + ' frente a x' +
-            a.pago.toFixed(2) + ' aqui. Es la unica mejora real disponible.';
+      estado.enVerde = false;
+      sub = 'En ' + mejor.nombre + ' esta misma ronda tiene ' + pct(mejor.exito) +
+            ' de exito, frente al ' + pct(a.probExito) + ' de aqui.';
+      pararCuenta();
       t.className = 'card luz ' + luz;
       $('luzTexto').textContent = texto;
       $('luzSub').textContent = sub;
       return;
     }
     if (a.probExito < 0.40) {
+      estado.enVerde = false;
+      pararCuenta();
       luz = 'rojo';
       texto = 'NO ENTRAR';
       sub = 'La configuracion es mala: solo ' + pct(a.probExito) +
             ' de cerrar en verde. Aplica una ronda recomendada abajo.';
-    } else if (pMomento < 0.50) {
+    } else if (pMomento < (estado.enVerde ? 0.40 : 0.50)) {
+      estado.enVerde = false;
+      pararCuenta();
       luz = 'ambar';
       texto = 'ESPERA';
       sub = 'La configuracion aguanta (' + pct(a.probExito) + '), pero ahora mismo el evento ' +
             'va por debajo de su equilibrio. Espera al verde.';
     } else {
+      estado.enVerde = true;
+      arrancarCuenta();
       luz = 'verde';
       texto = 'PUEDES ENTRAR';
       sub = 'Configuracion de ' + pct(a.probExito) + ' de exito y el evento esta en o por ' +
@@ -332,6 +414,7 @@
     $('btnIniciar').disabled = true;
 
     api.connect(APP_ID)
+      .then(function () { return cargarSimbolos(); })
       .then(function () {
         stats.reset();
         return api.ticksHistory(cfg().simbolo, 1000,

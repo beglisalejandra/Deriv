@@ -30,3 +30,12 @@
 .recos button.mejor{border-color:var(--green); background:#f6fef9}
 .recos button small{color:var(--muted)}
 tr.actual td{background:var(--teal-l); font-weight:700}
+.cuenta{background:rgba(255,255,255,.75); border:1px solid var(--green);
+        border-radius:10px; padding:.6rem .7rem; margin-bottom:.6rem}
+.cuenta b{display:block; font-size:1.6rem; font-weight:800; color:var(--green);
+          font-variant-numeric:tabular-nums; line-height:1.1}
+.cuenta small{display:block; font-size:.68rem; color:var(--muted); margin-top:.35rem}
+.cuenta-barra{height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; margin-top:.4rem}
+.cuenta-barra>div{height:100%; background:var(--green); width:100%; transition:width .2s linear}
+#cuentaNum.renovado{animation:pulso .6s ease}
+@keyframes pulso{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}

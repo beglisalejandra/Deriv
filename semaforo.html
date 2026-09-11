@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Semaforo de Rondas — Deriv</title>
-<link rel="stylesheet" href="css/style.css?v=20260911-23">
-<link rel="stylesheet" href="css/semaforo.css?v=20260911-23">
+<link rel="stylesheet" href="css/style.css?v=20260911-24">
+<link rel="stylesheet" href="css/semaforo.css?v=20260911-24">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚦</text></svg>">
 </head>
 <body>
@@ -36,6 +36,13 @@
     </div>
 
     <button class="btn big" id="btnIniciar">INICIAR</button>
+
+    <div class="cuenta" id="cuenta" hidden>
+      <span class="k">Esta lectura caduca en</span>
+      <b id="cuentaNum">—</b>
+      <div class="cuenta-barra"><div id="cuentaBarra"></div></div>
+      <small>Se renueva sola mientras siga en verde. Si la condicion se rompe, desaparece.</small>
+    </div>
 
     <div class="marcador">
       <div>
@@ -130,9 +137,10 @@
 
   <!-- ============ ESCANER DE PAGOS ============ -->
   <div class="card">
-    <h2>4 · Donde pagan mejor ahora</h2>
-    <p class="note">La probabilidad de acertar no cambia nunca. El pago si, segun el indice.
-       Entrar donde mejor pagan es el unico filtro de entrada que mueve el resultado.</p>
+    <h2>4 · Donde la ronda tiene mas exito</h2>
+    <p class="note">Con tu mismo objetivo y limite, cotiza cada indice y calcula la
+       probabilidad exacta de que la ronda llegue al objetivo antes que al limite.
+       Ordenados de mejor a peor.</p>
     <div id="escaner"><p class="note">Pulsa INICIAR para cotizar.</p></div>
     <p class="honest" id="notaEscaner"></p>
   </div>
@@ -168,13 +176,13 @@
 
 <footer>
   <p>No es asesoria financiera. Los datos son publicos; esta pagina no accede a tu cuenta.<br>
-     <span id="appVersion">version 20260911-23</span></p>
+     <span id="appVersion">version 20260911-24</span></p>
 </footer>
 
-<script src="js/api.js?v=20260911-23"></script>
-<script src="js/stats.js?v=20260911-23"></script>
-<script src="js/edge.js?v=20260911-23"></script>
-<script src="js/ronda.js?v=20260911-23"></script>
-<script src="js/semaforo.js?v=20260911-23"></script>
+<script src="js/api.js?v=20260911-24"></script>
+<script src="js/stats.js?v=20260911-24"></script>
+<script src="js/edge.js?v=20260911-24"></script>
+<script src="js/ronda.js?v=20260911-24"></script>
+<script src="js/semaforo.js?v=20260911-24"></script>
 </body>
 </html>
