@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Digits Trading Analytics — Deriv</title>
-<link rel="stylesheet" href="css/style.css?v=20260911-14">
+<link rel="stylesheet" href="css/style.css?v=20260911-16">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
 </head>
 <body>
@@ -45,8 +45,37 @@
        dinero. Funciona todo menos enviar ordenes reales. Es el punto de partida
        recomendado.</p>
 
+    <div class="oauth">
+      <h3 style="margin-top:0">Conectar tu cuenta para operar</h3>
+      <label>App ID propio
+        <input id="oauthAppId" type="text" inputmode="numeric" placeholder="ej. 80123">
+        <small>Hace falta uno propio, registrado con la direccion de esta pagina. Debajo
+               estan los pasos; se hace una sola vez.</small>
+      </label>
+      <button class="btn big" id="btnOAuth">Iniciar sesion con Deriv</button>
+      <p class="note">Te lleva a Deriv, inicias sesion como siempre, y vuelves aqui ya
+         conectado. No hay que copiar ningun token.</p>
+
+      <details>
+        <summary>Como registrar tu App ID (una sola vez)</summary>
+        <ol>
+          <li>Abre <b>api.deriv.com</b> e inicia sesion</li>
+          <li>Entra en <b>Dashboard</b> y busca <b>Register application</b>
+              o <b>Gestionar aplicaciones</b></li>
+          <li>Nombre: el que quieras, por ejemplo <b>MiAnalizador</b></li>
+          <li>En <b>redirect URL</b> o <b>URL de redireccion</b> pega exactamente
+              la direccion de esta pagina:
+              <code id="miUrl"></code></li>
+          <li>Marca el permiso de <b>Trade / Operaciones</b></li>
+          <li>Guarda. Te dara un numero de <b>App ID</b>: copialo en el campo de arriba</li>
+        </ol>
+        <p class="honest">La direccion de redireccion tiene que coincidir letra por letra,
+           incluida la barra final. Si no coincide, Deriv no te devolvera aqui.</p>
+      </details>
+    </div>
+
     <details id="realConn">
-      <summary>Ya tengo cuenta de Deriv y quiero conectarla</summary>
+      <summary>Prefiero pegar un token a mano</summary>
       <label>API Token
         <input id="apiToken" type="password" placeholder="pat_…" autocomplete="off">
         <small>Se crea en <b>app.deriv.com → Configuracion → Ficha API → Crear token</b>.
@@ -187,8 +216,9 @@
     <div class="grid2">
       <label>Certeza exigida
         <select id="gateThreshold">
+          <option value="0.80">80% — permisivo</option>
           <option value="0.90">90%</option>
-          <option value="0.95" selected>95%</option>
+          <option value="0.95" selected>95% — estricto</option>
           <option value="0.99">99%</option>
         </select>
       </label>
@@ -710,13 +740,13 @@
 </main>
 
 <footer>
-  <p>Herramienta de analisis y ejecucion. No es asesoria financiera. Empieza en cuenta Demo.<br><span id="appVersion">version 20260911-14</span></p>
+  <p>Herramienta de analisis y ejecucion. No es asesoria financiera. Empieza en cuenta Demo.<br><span id="appVersion">version 20260911-16</span></p>
 </footer>
 
-<script src="js/api.js?v=20260911-14"></script>
-<script src="js/stats.js?v=20260911-14"></script>
-<script src="js/edge.js?v=20260911-14"></script>
-<script src="js/trader.js?v=20260911-14"></script>
-<script src="js/app.js?v=20260911-14"></script>
+<script src="js/api.js?v=20260911-16"></script>
+<script src="js/stats.js?v=20260911-16"></script>
+<script src="js/edge.js?v=20260911-16"></script>
+<script src="js/trader.js?v=20260911-16"></script>
+<script src="js/app.js?v=20260911-16"></script>
 </body>
 </html>

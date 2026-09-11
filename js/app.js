@@ -222,6 +222,89 @@
   });
 
 
+
+
+  /* ------------------------------ OAuth --------------------------------- */
+
+  function urlDeEstaPagina() {
+    return location.origin + location.pathname;
+  }
+
+  $('btnOAuth').addEventListener('click', function () {
+    var appId = $('oauthAppId').value.trim();
+    if (!appId) {
+      setConn('', 'Falta tu App ID propio. Debajo del boton estan los pasos para registrarlo.');
+      return;
+    }
+    try { localStorage.setItem('deriv_oauth_appid', appId); } catch (e) {}
+    setConn('conectando', 'Redirigiendo a Deriv…');
+    window.DerivAPI.redirigirAOAuth(appId, urlDeEstaPagina());
+  });
+
+  /* Conecta con la credencial de una cuenta concreta devuelta por OAuth. */
+  function conectarCuenta(cuenta, appId) {
+    setConn('conectando', 'Conectando como ' + cuenta.loginid + '…');
+    stopTicks();
+    api.connect(appId)
+      .then(function () { return api.authorize(cuenta.token); })
+      .then(function (acc) {
+        state.currency = acc.currency || cuenta.currency || 'USD';
+        var demo = !!acc.is_virtual;
+        var badge = $('accountBadge');
+        badge.textContent = (demo ? 'DEMO' : 'REAL') + ' · ' + acc.loginid;
+        badge.className = 'badge ' + (demo ? 'demo' : 'real');
+        setConn('conectado', 'Conectado como ' + acc.loginid + ' · saldo ' +
+                Number(acc.balance).toFixed(2) + ' ' + state.currency);
+        toggleConnected(true);
+        log('Sesion iniciada por OAuth: ' + acc.loginid + (demo ? ' (demo)' : ' (REAL)') + '.');
+        api.balance(function (b) {
+          setConn('conectado', 'Conectado como ' + acc.loginid + ' · saldo ' +
+                  Number(b.balance).toFixed(2) + ' ' + b.currency);
+        }).then(function (sub) { state.balanceSub = sub.reqId; }).catch(function () {});
+        return loadSymbols();
+      })
+      .then(function () { startTicks(); })
+      .catch(function (e) {
+        log('Fallo al conectar la cuenta [' + (e.code || 'sin codigo') + ']: ' + e.message);
+        api.disconnect();
+        toggleConnected(false);
+        setConn('', 'No se pudo conectar: ' + e.message);
+        $('rawError').textContent = 'Codigo de Deriv: ' + (e.code || 'ninguno') + ' — "' + e.message + '"';
+        $('rawError').hidden = false;
+      });
+  }
+
+  /* Al volver de Deriv: mostrar las cuentas devueltas y dejar elegir. */
+  function procesarRetornoOAuth() {
+    var cuentas = window.DerivAPI.leerCuentasDeLaURL();
+    if (!cuentas.length) return false;
+
+    var appId = '';
+    try { appId = localStorage.getItem('deriv_oauth_appid') || ''; } catch (e) {}
+    if (appId) $('oauthAppId').value = appId;
+    window.DerivAPI.limpiarURL();          // fuera credenciales de la barra
+
+    var caja = document.createElement('div');
+    caja.className = 'cuentas';
+    caja.innerHTML = '<p class="note" style="margin:0 0 .3rem">Sesion iniciada en Deriv. ' +
+                     'Elige con que cuenta operar:</p>';
+    cuentas.forEach(function (c) {
+      var b = document.createElement('button');
+      b.className = c.esDemo ? 'demo' : 'real';
+      b.innerHTML = '<b>' + (c.esDemo ? 'DEMO' : 'REAL') + ' · ' + c.loginid + '</b>' +
+                    (c.esDemo ? 'Dinero virtual. Empieza por aqui.'
+                              : 'Dinero real. Cada operacion cuenta.');
+      b.addEventListener('click', function () { conectarCuenta(c, appId); });
+      caja.appendChild(b);
+    });
+    $('connStatus').parentNode.insertBefore(caja, $('connStatus'));
+
+    // Con una sola cuenta demo, conectar directamente.
+    if (cuentas.length === 1 && cuentas[0].esDemo) conectarCuenta(cuentas[0], appId);
+    else log('Deriv devolvio ' + cuentas.length + ' cuenta(s). Elige una para continuar.');
+    return true;
+  }
+
   $('btnDemo').addEventListener('click', function () {
     setConn('conectando', 'Iniciando demostracion local…');
     api.connectDemo()
@@ -1199,5 +1282,14 @@
     if (savedApp) $('appId').value = savedApp;
   } catch (e) {}
 
-  log('Listo. Conecta con un token de cuenta demo para empezar.');
+  if ($('miUrl')) $('miUrl').textContent = urlDeEstaPagina();
+  try {
+    var oa = localStorage.getItem('deriv_oauth_appid');
+    if (oa) $('oauthAppId').value = oa;
+  } catch (e) {}
+
+  if (!procesarRetornoOAuth()) {
+    log('Listo. Usa «Iniciar sesion con Deriv» para conectar tu cuenta, o ' +
+        '«Empezar ahora» para explorar sin cuenta.');
+  }
 })();

@@ -243,3 +243,16 @@ details ul.reasons{color:var(--ink)}
 #tokenAyuda ol{font-size:.78rem; color:var(--ink); padding-left:1.2rem; margin:.5rem 0}
 #tokenAyuda li{margin-bottom:.3rem}
 #appVersion{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.65rem; opacity:.6}
+.oauth{background:var(--teal-l); border:1px solid var(--teal); border-radius:10px;
+       padding:.9rem; margin:1rem 0}
+.oauth h3{color:var(--teal-d); font-size:.9rem; text-transform:none; letter-spacing:0}
+.oauth ol{font-size:.78rem; padding-left:1.2rem; color:var(--ink)}
+.oauth li{margin-bottom:.4rem}
+.oauth code{display:block; background:#fff; border:1px solid var(--line); border-radius:6px;
+            padding:.35rem .5rem; margin-top:.25rem; font-size:.7rem; word-break:break-all}
+.cuentas{display:flex; flex-direction:column; gap:.4rem; margin:.6rem 0}
+.cuentas button{text-align:left; padding:.6rem .7rem; border-radius:8px; border:1px solid var(--line);
+                background:#fff; font:inherit; font-size:.8rem; cursor:pointer}
+.cuentas button b{display:block; font-size:.9rem}
+.cuentas button.demo{border-color:#0891b2}
+.cuentas button.real{border-color:var(--red)}

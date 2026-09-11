@@ -57,7 +57,30 @@ demostración — verificado: cero llamadas de compra.
 
 Es la forma de recorrer la herramienta entera antes de crear ningún token.
 
-### 3. Crear el API token
+### 3. Conectar tu cuenta
+
+**Vía recomendada — iniciar sesión con Deriv (OAuth).** No hay que copiar ningún token.
+
+Necesitas un App ID propio, y se registra una sola vez:
+
+1. Abre `api.deriv.com`, inicia sesión y entra en **Dashboard**
+2. Busca **Register application** / **Gestionar aplicaciones**
+3. Nombre: el que quieras
+4. En **redirect URL** pega exactamente la dirección de tu página, por ejemplo
+   `https://beglisalejandra.github.io/Deriv/` — tiene que coincidir letra por letra,
+   incluida la barra final
+5. Marca el permiso de **Trade / Operaciones** y guarda
+6. Copia el número de **App ID** que te dé
+
+Luego, en la herramienta: pega ese App ID y pulsa **Iniciar sesión con Deriv**. Te lleva a
+Deriv, inicias sesión como siempre, y vuelves ya conectado. La app te mostrará tus cuentas
+para que elijas con cuál operar — la demo aparece marcada en azul y la real en rojo.
+
+Las credenciales que Deriv devuelve en la dirección se borran de la barra nada más leerlas.
+
+### 3b. Alternativa: token manual
+
+
 
 En `app.deriv.com` → **Configuración** → **API token** → marcar solo **Operaciones** → crear.
 

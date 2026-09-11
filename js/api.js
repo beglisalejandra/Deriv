@@ -228,6 +228,50 @@
     return (1 / p) * (1 - edge);
   };
 
+
+  /* =======================================================================
+   *  OAuth — el metodo oficial de Deriv para aplicaciones de terceros
+   *
+   *  En lugar de pegar un token a mano, se redirige al usuario a Deriv,
+   *  inicia sesion alli, y Deriv devuelve a la aplicacion una credencial
+   *  por cada cuenta suya. Esas credenciales si las acepta authorize.
+   * ===================================================================== */
+
+  var OAUTH_URL = 'https://oauth.deriv.com/oauth2/authorize';
+
+  DerivAPI.redirigirAOAuth = function (appId, redirect) {
+    var url = OAUTH_URL + '?app_id=' + encodeURIComponent(appId) + '&l=ES&brand=deriv';
+    if (redirect) url += '&redirect_uri=' + encodeURIComponent(redirect);
+    global.location.href = url;
+  };
+
+  /* Lee las cuentas que Deriv deja en la URL al volver de OAuth.
+     Formato: ?acct1=VRTC123&token1=a1-xxx&cur1=USD&acct2=CR456&token2=... */
+  DerivAPI.leerCuentasDeLaURL = function () {
+    var params = new URLSearchParams(global.location.search);
+    var cuentas = [];
+    for (var i = 1; i <= 20; i++) {
+      var loginid = params.get('acct' + i);
+      var token = params.get('token' + i);
+      if (!loginid || !token) continue;
+      cuentas.push({
+        loginid: loginid,
+        token: token,
+        currency: params.get('cur' + i) || 'USD',
+        esDemo: /^VRT/i.test(loginid)
+      });
+    }
+    return cuentas;
+  };
+
+  /* Borra las credenciales de la barra de direcciones sin recargar. */
+  DerivAPI.limpiarURL = function () {
+    try {
+      global.history.replaceState({}, document.title,
+        global.location.pathname + global.location.hash);
+    } catch (e) {}
+  };
+
   /* ---------------------- Atajos de alto nivel ---------------------- */
 
   DerivAPI.prototype.authorize = function (token) {
