@@ -50,7 +50,12 @@ Pulsa **Run** y el bot empieza.
 
 ## 3. La vía completa: importar un bot
 
-En el repo hay tres bots listos:
+En el repo hay cinco bots listos. **Los dos primeros son los recomendados**, ya vienen
+con los valores optimos puestos:
+
+- **`bots/par-proteccion-capital.xml`** — Par con trailing stop. El de mejores cifras
+  medidas: −0.07 de media por sesion.
+- **`bots/proteccion-capital.xml`** — lo mismo sobre Matches: −0.21 por sesion.
 
 - **`bots/differs-3-perdidas.xml`** — Differs con parada automatica a las 3 perdidas
   seguidas. Es el que cumple el requisito de no encadenar mas de tres fallos.

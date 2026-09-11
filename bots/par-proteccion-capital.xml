@@ -1,6 +1,6 @@
 <xml xmlns="https://developers.google.com/blockly/xml" is_dbot="true" collection="false">
   <!--
-    PROTECCION DE CAPITAL — Matches sobre Volatility 75 (1s)
+    PROTECCION DE CAPITAL — Par sobre Volatility 75 (1s) — el de mejores cifras
 
     VALORES YA PUESTOS, buscados sobre 12.000 sesiones por combinacion:
       stake                  1
@@ -9,7 +9,7 @@
       retroceso_maximo       1
       max_perdidas_seguidas  3
 
-    Resultado medio por sesion con estos valores: -0.21
+    Resultado medio por sesion con estos valores: -0.07
     Con la configuracion de arranque anterior (10 / 10 / 3 / 5) era -2.75.
 
     LOS TRES CONTROLES
@@ -33,7 +33,7 @@
     asi que menos tiempo dentro es menos comision pagada.
 
     LO QUE SIGUE SIN CAMBIAR
-    El resultado medio sigue siendo negativo. -0.21 por sesion es mucho
+    El resultado medio sigue siendo negativo. -0.07 por sesion es mucho
     mejor que -2.75, pero no es positivo, y ninguna combinacion de estas
     cinco variables cruza el cero.
 
@@ -59,9 +59,9 @@
         <field name="SYMBOL_LIST">1HZ75V</field>
         <next><block type="trade_definition_tradetype" id="tdt" deletable="false" movable="false">
           <field name="TRADETYPECAT_LIST">digits</field>
-          <field name="TRADETYPE_LIST">matchesdiffers</field>
+          <field name="TRADETYPE_LIST">evenodd</field>
           <next><block type="trade_definition_contracttype" id="tdc" deletable="false" movable="false">
-            <field name="TYPE_LIST">DIGITMATCH</field>
+            <field name="TYPE_LIST">DIGITEVEN</field>
             <next><block type="trade_definition_candleinterval" id="tdci" deletable="false" movable="false">
               <field name="CANDLEINTERVAL_LIST">60</field>
               <next><block type="trade_definition_restartbuysell" id="tdrb" deletable="false" movable="false">
@@ -107,14 +107,13 @@
         <field name="CURRENCY_LIST">USD</field>
         <value name="DURATION"><block type="math_number" id="ndur"><field name="NUM">1</field></block></value>
         <value name="AMOUNT"><block type="variables_get" id="gstake"><field name="VAR" id="vstake">stake</field></block></value>
-        <value name="PREDICTION"><block type="math_number" id="npred"><field name="NUM">1</field></block></value>
       </block>
     </statement>
   </block>
 
   <block type="before_purchase" id="bp" deletable="false" movable="false" x="0" y="700">
     <statement name="BEFOREPURCHASE_STACK">
-      <block type="purchase" id="pur"><field name="PURCHASE_LIST">DIGITMATCH</field></block>
+      <block type="purchase" id="pur"><field name="PURCHASE_LIST">DIGITEVEN</field></block>
     </statement>
   </block>
 
