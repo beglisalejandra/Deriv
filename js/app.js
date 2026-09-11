@@ -175,6 +175,8 @@
     if (!token) { setConn('', 'Falta el API token.'); return; }
 
     setConn('conectando', 'Conectando…');
+    $('rawError').hidden = true;
+    $('tokenAyuda').hidden = true;
     stopTicks();
     engine.stop('Conexion cambiada de cuenta.');
     api.connect(appId)
@@ -206,6 +208,11 @@
       .then(function () { startTicks(); })
       .catch(function (e) {
         log('Fallo de conexion [' + (e.code || 'sin codigo') + ']: ' + e.message);
+        $('rawError').textContent = 'Codigo de Deriv: ' + (e.code || 'ninguno') +
+                                    ' — "' + e.message + '"';
+        $('rawError').hidden = false;
+        $('tokenAyuda').hidden = !/InvalidToken|AuthorizationRequired/i.test(
+          (e.code || '') + ' ' + e.message);
         // Desconectar primero: su evento de cierre reescribe el estado, asi que
         // el mensaje de diagnostico tiene que ponerse despues para sobrevivir.
         api.disconnect();

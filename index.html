@@ -73,6 +73,22 @@
     </details>
 
     <p class="status" id="connStatus">Sin iniciar.</p>
+    <p class="rawerr" id="rawError" hidden></p>
+    <details id="tokenAyuda" hidden>
+      <summary>Deriv rechaza el token: como averiguar por que</summary>
+      <p>Comprueba el token en el explorador oficial de Deriv, que no pasa por esta
+         herramienta. Si alli tambien falla, el problema esta en el token o en la cuenta;
+         si alli funciona, el problema es de esta herramienta y hay que mirarlo.</p>
+      <ol>
+        <li>Abre <b>api.deriv.com/api-explorer</b></li>
+        <li>Busca el metodo <b>Authorize</b> en la lista de la izquierda</li>
+        <li>Pega el token en el campo y pulsa <b>Send Request</b></li>
+        <li>Mira la respuesta: si trae <b>loginid</b> y <b>balance</b>, el token es valido</li>
+      </ol>
+      <p class="honest">Causas habituales cuando el formato es correcto: el token se creo en
+         otra cuenta, se borro, ya caduco, o se copio de una ventana anterior. Deriv solo
+         muestra el token entero una vez, al crearlo.</p>
+    </details>
   </div>
 
   <div class="card">

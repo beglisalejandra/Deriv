@@ -237,3 +237,8 @@ details ul.reasons{color:var(--ink)}
 #connCard details{margin-top:1rem; border-top:1px solid var(--line); padding-top:.8rem}
 #connCard details summary{font-size:.8rem}
 #connCard details label{margin-top:.75rem}
+.rawerr{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.7rem;
+        background:#fef2f2; border:1px solid #fecaca; color:#991b1b;
+        padding:.5rem .6rem; border-radius:8px; margin:.5rem 0; word-break:break-word}
+#tokenAyuda ol{font-size:.78rem; color:var(--ink); padding-left:1.2rem; margin:.5rem 0}
+#tokenAyuda li{margin-bottom:.3rem}
