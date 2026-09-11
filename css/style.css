@@ -219,3 +219,14 @@ details p, details ul{font-size:.8rem; color:var(--ink); margin-top:.5rem}
 details .note, details .honest{font-size:.76rem}
 details ul.reasons{color:var(--ink)}
 #view-guia .btn{margin-bottom:.35rem}
+
+/* ---------- diagnostico del bot ---------- */
+.diag{border-radius:10px; padding:.7rem .8rem; margin:1rem 0 .5rem;
+      background:#fff7ed; border:1px solid #fed7aa}
+.diag.ok{background:#f0fdf4; border-color:#bbf7d0}
+.diag b{display:block; font-size:.85rem; margin-bottom:.35rem; color:#9a3412}
+.diag.ok b{color:var(--green)}
+.diag ul{margin:0; padding-left:1.1rem; font-size:.76rem; color:var(--muted)}
+.diag li{margin-bottom:.3rem}
+.diag li.block{color:#9a3412; font-weight:600}
+.diag li b{display:inline; font-size:inherit; color:inherit}

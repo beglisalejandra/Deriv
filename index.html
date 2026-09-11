@@ -300,6 +300,11 @@
             valor esperado negativo.</span>
     </label>
 
+    <div class="diag" id="diag">
+      <b id="diagTitle">Comprobando…</b>
+      <ul id="diagList"></ul>
+    </div>
+
     <div class="row">
       <button class="btn run" id="btnRun" disabled>Ejecutar</button>
       <button class="btn stop" id="btnStop" disabled>Detener</button>
@@ -376,6 +381,12 @@
        Para verla operar, desmarca «operar solo cuando la puerta diga ENTRAR» en la pestana
        Bot. <b>Hazlo solo en simulacion</b>, para medir: es justamente lo que la puerta
        existe para impedir con dinero real.</p>
+
+    <button class="btn run" id="presetRun">Aplicar configuracion operativa</button>
+    <p class="note"><b>La que hace que el bot opere.</b> Matches, stake fijo de 1 USD,
+       puerta desactivada y limites puestos. Es la configuracion de la tabla que aparece
+       arriba del boton Ejecutar. Arranca en simulacion; cambia el Modo a Real cuando
+       quieras operar de verdad.</p>
 
     <button class="btn ghost" id="presetVideo">Aplicar la del video</button>
     <p class="note"><b>Matches con martingala x2.2.</b> Sirve para compararla con la

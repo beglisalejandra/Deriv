@@ -718,6 +718,7 @@
         (engine.gateBlocks ? ' Puerta cerrada ' + engine.gateBlocks + ' vez(ces); sin operar.' : '')
       : (engine.stopReason || 'El bot no esta corriendo.');
     renderResults();
+    renderDiag();
   };
   engine.onGate = renderGate;
   engine.onTrade = function (t) {
@@ -785,6 +786,97 @@
   });
 
 
+
+  /* --------------------- Diagnostico: por que no opera ------------------ */
+
+  /* Revisa, en tiempo real, todo lo que puede impedir que el bot opere y lo
+     dice antes de pulsar Ejecutar, no despues. */
+  function renderDiag() {
+    var el = $('diag'), list = $('diagList'), title = $('diagTitle');
+    if (!el) return;
+    var bloqueos = [], avisos = [];
+
+    if (!api.isOpen()) {
+      bloqueos.push('No estas conectado. Pulsa <b>Conectar</b> o <b>Explorar sin cuenta</b> en el Panel.');
+    } else {
+      if (!state.analyzing) {
+        bloqueos.push('El analisis esta parado. Pulsa <b>Iniciar analisis</b> en el Panel.');
+      }
+      var n = stats.digits.length;
+      if (n < 30) {
+        bloqueos.push('Solo hay ' + n + ' ticks. Hacen falta 30 para empezar; espera unos segundos.');
+      }
+    }
+
+    if ($('mode').value === 'real' && api.demo) {
+      bloqueos.push('Estas en demostracion local: el modo <b>Real</b> no envia ordenes. ' +
+                    'Cambia a <b>Simulacion</b> o conecta con un token.');
+    }
+    if ($('mode').value === 'real' && !$('realConfirm').checked && !api.demo) {
+      bloqueos.push('Falta marcar la casilla de confirmacion del modo Real.');
+    }
+
+    // El filtro de pago puede ser imposible de cumplir para la estrategia elegida.
+    var stratKey = $('strategy').value;
+    var minPay = Number($('minPayoutMult').value) || 0;
+    if (minPay > 0 && stats.digits.length) {
+      var sig = window.DigitStats.STRATEGIES[stratKey].run(stats.report(Number($('windowTicks').value)));
+      var justo = 1 / window.DigitStats.theoreticalWinProb(sig.contract_type, sig.barrier);
+      if (minPay > justo) {
+        bloqueos.push('El <b>pago minimo x' + minPay + '</b> es imposible con esta estrategia: ' +
+                      'su pago justo es x' + justo.toFixed(2) + ', asi que nunca lo alcanzara. ' +
+                      'Pon <b>sin filtro</b> o cambia de estrategia.');
+      }
+    }
+
+    if ($('requireGate').checked) {
+      bloqueos.push('La <b>puerta</b> esta activada: solo operara si una entrada supera su punto ' +
+                    'de equilibrio con ' + (Number($('gateThreshold').value) * 100).toFixed(0) +
+                    '% de certeza. En los indices sinteticos eso casi nunca ocurre. ' +
+                    'Desmarcala si quieres que opere.');
+    }
+
+    var maxT = Number($('maxTrades').value) || 0;
+    if (maxT > 0 && engine.trades.length >= maxT) {
+      bloqueos.push('Ya se alcanzo el maximo de ' + maxT + ' operaciones. ' +
+                    'Sube el numero o pulsa <b>Reiniciar contadores</b> en Resultados.');
+    }
+
+    var streak = Number($('maxLossStreak').value) || 0;
+    if (streak > 0 && streak <= 8 && /matches|over_8|under_1/.test(stratKey)) {
+      avisos.push('Con <b>' + streak + ' perdidas seguidas maximas</b> y una estrategia de ' +
+                  'acierto 10%, el bot se detendra solo tras unas ' +
+                  Math.round((1 - Math.pow(0.9, streak)) / (0.1 * Math.pow(0.9, streak))) +
+                  ' operaciones. Pon <b>0</b> para desactivar ese limite.');
+    }
+    if ($('money').value === 'martingale') {
+      var f = Number($('factor').value) || 2, pasos = Number($('maxSteps').value) || 5;
+      var cap = 1 * (Math.pow(f, pasos) - 1) / (f - 1);
+      avisos.push('Martingala x' + f + ' con ' + pasos + ' pasos: necesitas ' +
+                  (cap * (Number($('baseStake').value) || 1)).toFixed(2) + ' USD para cubrir la escalera.');
+    }
+
+    if (bloqueos.length) {
+      el.className = 'diag';
+      title.textContent = bloqueos.length === 1
+        ? 'Una cosa impide que opere:' : 'Hay ' + bloqueos.length + ' cosas que impiden que opere:';
+    } else {
+      el.className = 'diag ok';
+      title.textContent = engine.running ? 'Operando.' : 'Listo para operar. Pulsa Ejecutar.';
+    }
+    list.innerHTML = bloqueos.map(function (b) { return '<li class="block">' + b + '</li>'; })
+      .concat(avisos.map(function (a) { return '<li>' + a + '</li>'; })).join('');
+  }
+
+  // Cualquier cambio en los controles vuelve a evaluar el diagnostico.
+  ['mode','strategy','windowTicks','baseStake','duration','money','factor','maxSteps',
+   'takeProfit','stopLoss','maxStake','maxTrades','maxLossStreak','minPayoutMult',
+   'requireGate','realConfirm','gateThreshold'].forEach(function (id) {
+    var el = $(id);
+    if (el) { el.addEventListener('change', renderDiag); el.addEventListener('input', renderDiag); }
+  });
+  setInterval(renderDiag, 1500);
+
   /* ------------------------ Configuraciones listas ---------------------- */
 
   function applyPreset(cfg) {
@@ -796,6 +888,7 @@
       el.dispatchEvent(new Event('change'));
     });
     render();
+    renderDiag();
     $('predCard').hidden = false;
     $('gateCard').hidden = false;
     state.gateAt = 0;
@@ -823,6 +916,31 @@
     log('Aviso: con la puerta activada no operara, porque Differs tampoco cubre su ' +
         'punto de equilibrio. Desmarcala para medir en simulacion.');
     $('botStatus').textContent = 'Listo. Con la puerta activada no operara: lee el aviso de la Guia.';
+    window.scrollTo(0, 0);
+  });
+
+
+  $('presetRun').addEventListener('click', function () {
+    applyPreset({
+      strategy: 'matches_hot',
+      windowTicks: 100,
+      mode: 'sim',
+      baseStake: 1,
+      duration: 1,
+      money: 'flat',
+      takeProfit: 10,
+      stopLoss: 10,
+      maxStake: 20,
+      maxTrades: 50,
+      maxLossStreak: 0,
+      minPayoutMult: 7,
+      requireGate: false,
+      gateThreshold: 0.95,
+      gateMinSample: 500
+    });
+    log('Configuracion operativa aplicada. El bot operara al pulsar Ejecutar.');
+    $('botStatus').textContent = 'Listo. Ve a la pestana Bot y pulsa Ejecutar.';
+    renderDiag();
     window.scrollTo(0, 0);
   });
 
@@ -925,6 +1043,7 @@
   renderResults();
   renderCalibration();
   renderSustain();
+  renderDiag();
 
   try {
     var saved = localStorage.getItem('deriv_token');
