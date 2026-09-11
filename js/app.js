@@ -784,6 +784,73 @@
     log('Contadores reiniciados.');
   });
 
+
+  /* ------------------------ Configuraciones listas ---------------------- */
+
+  function applyPreset(cfg) {
+    Object.keys(cfg).forEach(function (id) {
+      var el = $(id);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = cfg[id];
+      else el.value = String(cfg[id]);
+      el.dispatchEvent(new Event('change'));
+    });
+    render();
+    $('predCard').hidden = false;
+    $('gateCard').hidden = false;
+    state.gateAt = 0;
+  }
+
+  $('presetSafe').addEventListener('click', function () {
+    applyPreset({
+      strategy: 'differs_cold',
+      windowTicks: 100,
+      mode: 'sim',
+      baseStake: 1,
+      duration: 1,
+      money: 'flat',
+      takeProfit: 10,
+      stopLoss: 10,
+      maxStake: 5,
+      maxTrades: 200,
+      maxLossStreak: 0,
+      minPayoutMult: 0,      // Differs paga x1.09: cualquier filtro lo bloquearia
+      requireGate: true,
+      gateThreshold: 0.95,
+      gateMinSample: 500
+    });
+    log('Configuracion sostenible aplicada: Differs, stake fijo 1 USD, sin filtro de pago.');
+    log('Aviso: con la puerta activada no operara, porque Differs tampoco cubre su ' +
+        'punto de equilibrio. Desmarcala para medir en simulacion.');
+    $('botStatus').textContent = 'Listo. Con la puerta activada no operara: lee el aviso de la Guia.';
+    window.scrollTo(0, 0);
+  });
+
+  $('presetVideo').addEventListener('click', function () {
+    applyPreset({
+      strategy: 'matches_hot',
+      windowTicks: 100,
+      mode: 'sim',
+      baseStake: 1,
+      duration: 1,
+      money: 'martingale',
+      factor: 2.2,
+      maxSteps: 5,
+      takeProfit: 10,
+      stopLoss: 10,
+      maxStake: 20,
+      maxTrades: 200,
+      maxLossStreak: 0,
+      minPayoutMult: 7,
+      requireGate: false,    // el bot del video no comprueba nada antes de entrar
+      gateThreshold: 0.95,
+      gateMinSample: 500
+    });
+    log('Configuracion del video aplicada: Matches, martingala x2.2, puerta DESACTIVADA.');
+    $('botStatus').textContent = 'Listo. Esta si operara, porque no comprueba nada antes de entrar.';
+    window.scrollTo(0, 0);
+  });
+
   /* ------------------------------ Realidad ------------------------------ */
 
   function renderEV() {

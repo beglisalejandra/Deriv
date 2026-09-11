@@ -27,6 +27,7 @@
   <button class="tab" data-tab="rigor">Rigor</button>
   <button class="tab" data-tab="resultados">Resultados</button>
   <button class="tab" data-tab="realidad">Realidad</button>
+  <button class="tab" data-tab="guia">Guia</button>
 </nav>
 
 <main>
@@ -345,6 +346,196 @@
     </div>
     <p class="honest" id="calibVerdict">Ejecuta el bot en simulacion para llenar esta tabla.</p>
     <button class="btn ghost" id="btnResetCalib">Borrar historial de calibracion</button>
+  </div>
+</section>
+
+<!-- ================== GUIA ================== -->
+<section class="view" id="view-guia">
+
+  <div class="card">
+    <h2>Que es esto</h2>
+    <p>Dos herramientas en una. <b>Analiza</b> los digitos de los indices de Deriv en vivo,
+       y <b>opera sola</b> si se lo pides. La diferencia con otras parecidas es que aqui
+       cada numero que ves esta calculado, no decorado.</p>
+    <p class="note">Toca cualquier titulo de abajo para desplegarlo.</p>
+  </div>
+
+  <div class="card">
+    <h2>Configuracion recomendada</h2>
+    <p>Dos ajustes completos, listos en un toque. Los dos arrancan en
+       <b>modo simulacion</b>, sin dinero.</p>
+
+    <button class="btn primary" id="presetSafe">Aplicar configuracion sostenible</button>
+    <p class="note"><b>Differs con stake fijo de 1 USD.</b> Es la combinacion que menos
+       comision paga (1.9% frente al 10.7% de Matches) y la que hace durar mas el capital.
+       Gana 9 de cada 10 veces, pero poco cada vez.</p>
+    <p class="honest"><b>Aviso: con esta configuracion el bot hara cero operaciones.</b>
+       No esta roto. Differs necesita acertar 91.74% para cubrir su pago de x1.09, y el
+       generador solo da 90%. La puerta lo detecta y no deja entrar. Eso es la herramienta
+       diciendote la verdad sobre el producto.<br><br>
+       Para verla operar, desmarca «operar solo cuando la puerta diga ENTRAR» en la pestana
+       Bot. <b>Hazlo solo en simulacion</b>, para medir: es justamente lo que la puerta
+       existe para impedir con dinero real.</p>
+
+    <button class="btn ghost" id="presetVideo">Aplicar la del video</button>
+    <p class="note"><b>Matches con martingala x2.2.</b> Sirve para compararla con la
+       anterior en simulacion. Pon las dos a correr un rato y mira la pestana Resultados.</p>
+
+    <p class="honest">Ninguna de las dos es rentable a largo plazo: las dos tienen valor
+       esperado negativo. La primera pierde despacio, la segunda a rachas. Se incluyen para
+       que la diferencia la veas medida y no te la tenga que contar nadie.</p>
+  </div>
+
+  <div class="card">
+    <h2>Las pestanas</h2>
+    <details><summary>Panel</summary>
+      <p>Donde te conectas, eliges mercado y ves lo que pasa tick a tick. Abajo del todo
+         aparece la <b>decision de entrada</b>, que es la parte importante.</p></details>
+    <details><summary>Pagos</summary>
+      <p>Pregunta a Deriv cuanto paga ahora mismo cada tipo de contrato. Sirve para ver
+         cuales llegan a x7 o x10 y cuanto se lleva la casa en cada uno.</p></details>
+    <details><summary>Bot</summary>
+      <p>La operativa automatica y sus limites de seguridad.</p></details>
+    <details><summary>Rigor</summary>
+      <p>Responde a una sola pregunta: lo que estoy viendo, ¿es senal o es casualidad?</p></details>
+    <details><summary>Resultados</summary>
+      <p>Como va la sesion: operaciones, aciertos, ganancia o perdida, y descarga en CSV.</p></details>
+    <details><summary>Realidad</summary>
+      <p>Calculadoras para responder «¿cuanto me cuesta esto?» y «¿cuanto me dura el dinero?».</p></details>
+  </div>
+
+  <div class="card">
+    <h2>Panel, control a control</h2>
+
+    <details><summary>App ID</summary>
+      <p>El identificador con el que la app se presenta ante Deriv. El <b>1089</b> es publico
+         y lo comparte mucha gente, asi que sus limites de peticiones tambien son compartidos.
+         Si notas lentitud, registra el tuyo gratis en <b>api.deriv.com</b> y ponlo aqui.</p></details>
+
+    <details><summary>API Token</summary>
+      <p>La llave de tu cuenta. Se crea en <b>app.deriv.com → Configuracion → API token</b>
+         marcando <b>Read</b> y <b>Trade</b>. Se queda en tu navegador y nunca sale de tu
+         dispositivo.</p>
+      <p class="honest">La casilla «recordar» lo guarda sin cifrar en este telefono. No la
+         marques en un dispositivo compartido.</p></details>
+
+    <details><summary>Explorar sin cuenta</summary>
+      <p>Genera los ticks aqui mismo, sin red y sin cuenta. Todo funciona igual salvo el modo
+         real, que queda bloqueado. Es para aprender la herramienta sin riesgo.</p></details>
+
+    <details><summary>Indice</summary>
+      <p>Que mercado sintetico miras. Los que llevan <b>(1s)</b> generan un tick por segundo;
+         los demas, uno cada dos. Mas rapido significa mas datos por minuto, no mas facil.</p></details>
+
+    <details><summary>Estrategia</summary>
+      <p>Como se elige la apuesta a partir de lo observado:</p>
+      <ul class="reasons">
+        <li><b>Matches — digito mas frecuente:</b> apuesta a que se repite el que mas sale.</li>
+        <li><b>Matches — menos frecuente:</b> apuesta a que el rezagado «se pone al dia».</li>
+        <li><b>Differs:</b> apuesta a que NO sale el mas raro. Gana casi siempre, paga poco.</li>
+        <li><b>Over 8 / Under 1:</b> solo gana con el 9 o con el 0. Pagan mucho, aciertan poco.</li>
+        <li><b>Over / Under dinamico:</b> se pone del lado que domina.</li>
+        <li><b>Par / Impar:</b> la moneda al aire.</li>
+        <li><b>Matches al azar (control):</b> elige el digito a boleo. <b>Es la mas util de
+            todas:</b> es la vara de medir. Si tu estrategia no le gana a esta, no aporta nada.</li>
+      </ul></details>
+
+    <details><summary>Ventana de analisis</summary>
+      <p>Cuantos ticks recientes mira para decidir. Ventanas cortas reaccionan rapido pero
+         se inventan senales; ventanas largas son mas fiables y mas lentas. 100 esta bien
+         para empezar.</p></details>
+
+    <details><summary>El circulo y las barras</summary>
+      <p>El circulo es el ultimo digito que salio, con su color. Las barras son cuantas veces
+         salio cada digito en la ventana: verde el mas frecuente, roja el menos.</p></details>
+
+    <details><summary>Ticks · Par/Impar · Racha · Chi²</summary>
+      <p><b>Ticks:</b> cuantos lleva analizados. <b>Par/Impar:</b> el reparto.
+         <b>Racha:</b> cuantas veces seguidas se repite el ultimo digito.</p>
+      <p><b>Chi² (p)</b> es el importante. Mide si el reparto de digitos se parece al de un
+         generador justo. Si <b>p es mayor que 0.05</b>, todo normal. Si es menor, esa muestra
+         se desvia mas de lo habitual — pero mirando sin parar, 1 de cada 20 ventanas da eso
+         por pura casualidad.</p></details>
+
+    <details><summary>La tarjeta de prediccion</summary>
+      <p>Muestra la apuesta que propone la estrategia y con que frecuencia ocurrio eso en la
+         ventana. Ojo al matiz que repite el recuadro naranja: <b>esa frecuencia es lo que ya
+         paso, no la probabilidad de lo que viene.</b> La probabilidad del proximo tick es
+         siempre la misma, la fija el generador.</p></details>
+
+    <details><summary>Decision de entrada ⭐</summary>
+      <p>Es el corazon de la herramienta. Responde: <b>¿entrar aqui me conviene?</b></p>
+      <ul class="reasons">
+        <li><b>Necesario para no perder:</b> con cuanta frecuencia tendrias que acertar para
+            que el pago cubra la comision. Con pago x8.93 es 11.20%.</li>
+        <li><b>Tasa medida:</b> con cuanta frecuencia ocurre de verdad, sobre toda la muestra
+            acumulada (no sobre la ventana corta).</li>
+        <li><b>Probabilidad de que sea rentable:</b> la certeza de que la segunda supere a la
+            primera. La barra debe pasar la marca negra.</li>
+      </ul>
+      <p>Si la tasa medida no supera a la necesaria con suficiente certeza, dice
+         <b>NO ENTRAR</b>. No es pesimismo: es la resta.</p></details>
+  </div>
+
+  <div class="card">
+    <h2>Bot, control a control</h2>
+
+    <details open><summary>Modo — el mas importante</summary>
+      <p><b>Simulacion:</b> no envia nada. Espera al siguiente tick real y calcula que habria
+         pasado, usando el pago verdadero. Ideal para medir durante horas.</p>
+      <p><b>Real:</b> envia ordenes de verdad a tu cuenta.</p>
+      <p class="honest">Truco util: con un token de cuenta <b>Demo</b>, el modo Real envia
+         ordenes autenticas contra dinero virtual. Es la forma de probarlo todo sin arriesgar.</p></details>
+
+    <details><summary>Stake base y Duracion</summary>
+      <p><b>Stake:</b> cuanto pones en cada operacion. <b>Duracion:</b> cuantos ticks dura el
+         contrato. Con 1 tick se resuelve en un segundo.</p></details>
+
+    <details><summary>Gestion de capital</summary>
+      <p><b>Fija:</b> siempre lo mismo. Pierde despacio y de forma predecible.</p>
+      <p><b>Martingala:</b> multiplica el stake tras cada perdida para recuperar de golpe.
+         <b>Factor</b> es por cuanto multiplica; <b>pasos maximos</b> cuantas veces antes de
+         volver a empezar.</p>
+      <p class="honest">Con martingala x2.2 partiendo de 1 USD, cubrir 8 perdidas seguidas
+         exige 456 USD. Y perder 8 seguidas en Matches pasa de media cada 13 operaciones.
+         No reduce el riesgo: lo concentra.</p>
+      <p><b>D'Alembert</b> y <b>Fibonacci</b> son versiones mas suaves de la misma idea.</p></details>
+
+    <details><summary>Los cinco limites</summary>
+      <ul class="reasons">
+        <li><b>Objetivo de ganancia:</b> para al llegar. Sin el, la sesion no termina nunca.</li>
+        <li><b>Perdida maxima:</b> para al perder esa cantidad. El mas importante de todos.</li>
+        <li><b>Stake maximo:</b> techo por operacion. Frena a la martingala.</li>
+        <li><b>Operaciones maximas:</b> cuantas como mucho.</li>
+        <li><b>Perdidas seguidas maximas:</b> para tras esa racha. Pon <b>0</b> para desactivarlo.</li>
+      </ul>
+      <p>Se comprueban <b>antes</b> de cada orden, no despues.</p></details>
+
+    <details><summary>Pago minimo exigido — cuidado aqui</summary>
+      <p>Descarta contratos que paguen menos de lo indicado. Si pides <b>x7</b>, solo pasan
+         Matches, Over 8 y Under 1.</p>
+      <p class="honest">Trampa habitual: con la estrategia <b>Differs</b>, que paga x1.09, un
+         filtro de x7 bloquea absolutamente todo y el bot no opera nunca. Si usas Differs,
+         pon <b>sin filtro</b>.</p></details>
+
+    <details open><summary>Operar solo cuando la puerta diga ENTRAR</summary>
+      <p>Con esto marcado, el motor comprueba la decision de entrada antes de cada orden y no
+         opera si no sale favorable. Es lo que impide que el bot vaya perdiendo en piloto
+         automatico.</p>
+      <p>Si lo desmarcas, opera siempre que la estrategia proponga algo. Util para medir en
+         simulacion; mala idea con dinero.</p></details>
+  </div>
+
+  <div class="card">
+    <h2>Y si no opera nada?</h2>
+    <p>Es lo normal, y suele ser por una de estas tres:</p>
+    <ul class="reasons">
+      <li><b>La puerta esta cerrada.</b> El registro lo dice. Significa que ninguna entrada
+          supera su punto de equilibrio con la certeza pedida.</li>
+      <li><b>El filtro de pago lo bloquea todo.</b> Mira el apartado de arriba.</li>
+      <li><b>Falta muestra.</b> La puerta pide 500 ticks acumulados. Deja el analisis
+          corriendo unos minutos.</li>
+    </ul>
   </div>
 </section>
 

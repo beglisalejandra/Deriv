@@ -205,3 +205,17 @@ td .flag{font-size:.62rem; font-weight:700; padding:.12rem .35rem; border-radius
          background:#f1f5f9; color:var(--muted)}
 td .flag.sig{background:#fee2e2; color:#991b1b}
 .btn.demo{background:#fff; color:var(--teal-d); border:1px dashed var(--teal)}
+
+/* ---------- guia ---------- */
+details{border-top:1px solid var(--line); padding:.6rem 0}
+details:first-of-type{border-top:0}
+summary{font-weight:700; font-size:.85rem; color:var(--teal-d); cursor:pointer;
+        list-style:none; padding-right:1.2rem; position:relative}
+summary::-webkit-details-marker{display:none}
+summary::after{content:'+'; position:absolute; right:0; top:-1px; font-size:1.1rem;
+               color:var(--muted); font-weight:400}
+details[open] summary::after{content:'–'}
+details p, details ul{font-size:.8rem; color:var(--ink); margin-top:.5rem}
+details .note, details .honest{font-size:.76rem}
+details ul.reasons{color:var(--ink)}
+#view-guia .btn{margin-bottom:.35rem}
